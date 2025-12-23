@@ -1,32 +1,26 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import {
-  Heart,
-  MapPin,
-  Bed,
-  Bath,
-  Square,
-  Star,
-  X,
-  ArrowUpDown,
-} from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Heart, MapPin, Bed, Bath, Square, Star, X, ArrowUpDown } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { mockProperties } from '@/data/mockProperties';
-import { mockSavedPropertyIds } from '@/data/mockTenant';
+import { useAuth } from '@/contexts/AuthContext';
+import { getSavedProperties, unsaveProperty } from '@/lib/mockDatabase';
 import { toast } from 'sonner';
 
 export default function SavedProperties() {
-  const [savedIds, setSavedIds] = useState<string[]>(mockSavedPropertyIds);
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [savedIds, setSavedIds] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState('date');
+
+  useEffect(() => {
+    if (user) {
+      setSavedIds(getSavedProperties(user.id));
+    }
+  }, [user]);
 
   const savedProperties = mockProperties.filter((p) => savedIds.includes(p.id));
 
@@ -44,6 +38,8 @@ export default function SavedProperties() {
   });
 
   const handleRemove = (id: string) => {
+    if (!user) return;
+    unsaveProperty(user.id, id);
     setSavedIds(savedIds.filter((savedId) => savedId !== id));
     toast.success('Property removed from saved');
   };
@@ -76,11 +72,7 @@ export default function SavedProperties() {
           {sortedProperties.map((property) => (
             <Card key={property.id} className="group overflow-hidden">
               <div className="relative">
-                <img
-                  src={property.thumbnail}
-                  alt={property.title}
-                  className="w-full h-48 object-cover"
-                />
+                <img src={property.thumbnail} alt={property.title} className="w-full h-48 object-cover" />
                 <Button
                   variant="secondary"
                   size="icon"
@@ -100,9 +92,7 @@ export default function SavedProperties() {
                   <div className="flex items-center justify-between mb-1">
                     <p className="text-xl font-bold text-primary">
                       ${property.price.toLocaleString()}
-                      <span className="text-sm font-normal text-muted-foreground">
-                        /month
-                      </span>
+                      <span className="text-sm font-normal text-muted-foreground">/month</span>
                     </p>
                     <div className="flex items-center gap-1">
                       <Star className="h-4 w-4 fill-warning text-warning" />
@@ -119,33 +109,15 @@ export default function SavedProperties() {
                     {property.address.city}, {property.address.state}
                   </p>
                 </div>
-
                 <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                  <span className="flex items-center gap-1">
-                    <Bed className="h-4 w-4" />
-                    {property.bedrooms}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Bath className="h-4 w-4" />
-                    {property.bathrooms}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Square className="h-4 w-4" />
-                    {property.size} sqft
-                  </span>
+                  <span className="flex items-center gap-1"><Bed className="h-4 w-4" />{property.bedrooms}</span>
+                  <span className="flex items-center gap-1"><Bath className="h-4 w-4" />{property.bathrooms}</span>
+                  <span className="flex items-center gap-1"><Square className="h-4 w-4" />{property.size} sqft</span>
                 </div>
-
                 <div className="flex gap-2 pt-2">
                   <Link to={`/properties/${property.id}`} className="flex-1">
-                    <Button variant="outline" className="w-full" size="sm">
-                      View Details
-                    </Button>
+                    <Button variant="outline" className="w-full" size="sm">View Details</Button>
                   </Link>
-                  {property.status === 'available' && (
-                    <Button className="flex-1" size="sm">
-                      Apply Now
-                    </Button>
-                  )}
                 </div>
               </CardContent>
             </Card>
@@ -157,12 +129,9 @@ export default function SavedProperties() {
             <Heart className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
             <h3 className="font-semibold text-xl mb-2">No Saved Properties</h3>
             <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-              You haven't saved any properties yet. Browse listings and click the
-              heart icon to save properties you're interested in.
+              You haven't saved any properties yet. Browse listings and click the heart icon to save properties you're interested in.
             </p>
-            <Link to="/properties">
-              <Button>Browse Properties</Button>
-            </Link>
+            <Link to="/properties"><Button>Browse Properties</Button></Link>
           </CardContent>
         </Card>
       )}

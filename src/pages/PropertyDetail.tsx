@@ -1,24 +1,45 @@
-import { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Heart, Share2, Star, MapPin, Bed, Bath, Square, Calendar, Clock, Check, X, MessageSquare, Phone, Mail, Shield, Home } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { ChevronLeft, ChevronRight, Heart, Share2, Star, MapPin, Bed, Bath, Square, Calendar, Clock, Check, X, MessageSquare, Phone, Shield, Home, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
+import { ApplyLeaseModal } from '@/components/property/ApplyLeaseModal';
+import { ContactLandlordModal } from '@/components/property/ContactLandlordModal';
 import { getPropertyById, getReviewsByPropertyId, mockProperties } from '@/data/mockProperties';
+import { useAuth } from '@/contexts/AuthContext';
+import { isPropertySaved, saveProperty, unsaveProperty, hasAppliedToProperty } from '@/lib/mockDatabase';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 export default function PropertyDetail() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const { user, isAuthenticated } = useAuth();
+  
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isFavorite, setIsFavorite] = useState(false);
+  const [showApplyModal, setShowApplyModal] = useState(false);
+  const [showContactModal, setShowContactModal] = useState(false);
+  const [hasApplied, setHasApplied] = useState(false);
 
   const property = getPropertyById(id || '');
   const reviews = getReviewsByPropertyId(id || '');
   const similarProperties = mockProperties.filter(p => p.id !== id && p.type === property?.type).slice(0, 4);
+
+  // Load saved/applied status when user changes
+  useEffect(() => {
+    if (user && property) {
+      setIsFavorite(isPropertySaved(user.id, property.id));
+      setHasApplied(hasAppliedToProperty(user.id, property.id));
+    } else {
+      setIsFavorite(false);
+      setHasApplied(false);
+    }
+  }, [user, property]);
 
   if (!property) {
     return (
@@ -37,6 +58,44 @@ export default function PropertyDetail() {
 
   const nextImage = () => setCurrentImageIndex((prev) => (prev + 1) % property.images.length);
   const prevImage = () => setCurrentImageIndex((prev) => (prev - 1 + property.images.length) % property.images.length);
+
+  const handleToggleFavorite = () => {
+    if (!isAuthenticated || !user) {
+      navigate('/auth');
+      return;
+    }
+    
+    if (isFavorite) {
+      unsaveProperty(user.id, property.id);
+      setIsFavorite(false);
+      toast.success('Removed from saved properties');
+    } else {
+      saveProperty(user.id, property.id);
+      setIsFavorite(true);
+      toast.success('Added to saved properties');
+    }
+  };
+
+  const handleApplyLease = () => {
+    if (!isAuthenticated) {
+      navigate('/auth');
+      return;
+    }
+    if (hasApplied) {
+      toast.info('You have already applied to this property');
+      navigate('/dashboard/applications');
+      return;
+    }
+    setShowApplyModal(true);
+  };
+
+  const handleContactLandlord = () => {
+    if (!isAuthenticated) {
+      navigate('/auth');
+      return;
+    }
+    setShowContactModal(true);
+  };
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -84,7 +143,7 @@ export default function PropertyDetail() {
                 </div>
                 <div className="absolute top-4 right-4 flex gap-2">
                   <button
-                    onClick={() => setIsFavorite(!isFavorite)}
+                    onClick={handleToggleFavorite}
                     className={cn('p-2 rounded-full bg-background/80 backdrop-blur-sm transition-colors', isFavorite ? 'text-destructive' : 'text-muted-foreground hover:text-destructive')}
                   >
                     <Heart className={cn('h-5 w-5', isFavorite && 'fill-current')} />
@@ -237,11 +296,17 @@ export default function PropertyDetail() {
                       <span className="flex items-center gap-1"><Calendar className="h-4 w-4" /> Available {property.availableFrom}</span>
                       <span className="flex items-center gap-1"><Clock className="h-4 w-4" /> {property.minimumLease}mo min</span>
                     </div>
-                    <Button className="w-full mb-3" size="lg">
-                      <MessageSquare className="mr-2 h-5 w-5" /> Contact Landlord
+                    <Button 
+                      className="w-full mb-3" 
+                      size="lg" 
+                      onClick={handleApplyLease}
+                      disabled={hasApplied}
+                    >
+                      <FileText className="mr-2 h-5 w-5" />
+                      {hasApplied ? 'Already Applied' : 'Apply for Lease'}
                     </Button>
-                    <Button variant="outline" className="w-full" size="lg">
-                      <Calendar className="mr-2 h-5 w-5" /> Schedule Viewing
+                    <Button variant="outline" className="w-full" size="lg" onClick={handleContactLandlord}>
+                      <MessageSquare className="mr-2 h-5 w-5" /> Contact Landlord
                     </Button>
                   </CardContent>
                 </Card>
@@ -310,6 +375,18 @@ export default function PropertyDetail() {
       </main>
 
       <Footer />
+
+      {/* Modals */}
+      <ApplyLeaseModal
+        open={showApplyModal}
+        onOpenChange={setShowApplyModal}
+        property={property}
+      />
+      <ContactLandlordModal
+        open={showContactModal}
+        onOpenChange={setShowContactModal}
+        property={property}
+      />
     </div>
   );
 }

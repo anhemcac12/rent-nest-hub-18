@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useMemo, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { Search, SlidersHorizontal, Grid3X3, List, Star, Heart, MapPin, Bed, Bath, Square, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,8 +13,15 @@ import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { mockProperties } from '@/data/mockProperties';
 import { PROPERTY_TYPES, AMENITIES } from '@/types/property';
+import { useAuth } from '@/contexts/AuthContext';
+import { getSavedProperties, saveProperty, unsaveProperty } from '@/lib/mockDatabase';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
+
 export default function Properties() {
+  const navigate = useNavigate();
+  const { user, isAuthenticated } = useAuth();
+  
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('newest');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -33,6 +40,15 @@ export default function Properties() {
     selectedBedrooms: 'any',
     selectedAmenities: [] as string[],
   });
+
+  // Load user's saved properties
+  useEffect(() => {
+    if (user) {
+      setFavorites(getSavedProperties(user.id));
+    } else {
+      setFavorites([]);
+    }
+  }, [user]);
 
   const applyFilters = () => {
     setAppliedFilters({
@@ -90,7 +106,20 @@ export default function Properties() {
   }, [searchQuery, appliedFilters, sortBy]);
 
   const toggleFavorite = (id: string) => {
-    setFavorites(prev => prev.includes(id) ? prev.filter(f => f !== id) : [...prev, id]);
+    if (!isAuthenticated || !user) {
+      navigate('/auth');
+      return;
+    }
+    
+    if (favorites.includes(id)) {
+      unsaveProperty(user.id, id);
+      setFavorites(prev => prev.filter(f => f !== id));
+      toast.success('Removed from saved properties');
+    } else {
+      saveProperty(user.id, id);
+      setFavorites(prev => [...prev, id]);
+      toast.success('Added to saved properties');
+    }
   };
 
   const toggleType = (type: string) => {
@@ -123,6 +152,7 @@ export default function Properties() {
     JSON.stringify(draftSelectedTypes) !== JSON.stringify(appliedFilters.selectedTypes) ||
     draftSelectedBedrooms !== appliedFilters.selectedBedrooms ||
     JSON.stringify(draftSelectedAmenities) !== JSON.stringify(appliedFilters.selectedAmenities);
+
   const FiltersContent = () => (
     <div className="space-y-5">
       {/* Price Range */}
@@ -246,7 +276,9 @@ export default function Properties() {
       </div>
     </div>
   );
-  return <div className="min-h-screen flex flex-col">
+
+  return (
+    <div className="min-h-screen flex flex-col">
       <Header />
       
       <main className="flex-1 py-8">
@@ -314,22 +346,29 @@ export default function Properties() {
                 </p>
               </div>
 
-              {filteredProperties.length === 0 ? <div className="text-center py-16">
+              {filteredProperties.length === 0 ? (
+                <div className="text-center py-16">
                   <div className="text-6xl mb-4">🏠</div>
                   <h3 className="text-xl font-semibold text-foreground mb-2">No properties found</h3>
                   <p className="text-muted-foreground mb-6">Try adjusting your filters or search criteria</p>
                   <Button onClick={clearFilters}>Clear All Filters</Button>
-                </div> : <div className={cn(viewMode === 'grid' ? 'grid sm:grid-cols-2 lg:grid-cols-3 gap-6' : 'flex flex-col gap-4')}>
-                  {filteredProperties.map(property => <Card key={property.id} className={cn('overflow-hidden card-hover', viewMode === 'list' && 'flex flex-row')}>
+                </div>
+              ) : (
+                <div className={cn(viewMode === 'grid' ? 'grid sm:grid-cols-2 lg:grid-cols-3 gap-6' : 'flex flex-col gap-4')}>
+                  {filteredProperties.map(property => (
+                    <Card key={property.id} className={cn('overflow-hidden card-hover', viewMode === 'list' && 'flex flex-row')}>
                       <Link to={`/properties/${property.id}`} className={cn('block', viewMode === 'list' && 'flex')}>
                         <div className={cn('relative overflow-hidden', viewMode === 'grid' ? 'aspect-[4/3]' : 'w-64 h-48 shrink-0')}>
                           <img src={property.thumbnail} alt={property.title} className="object-cover w-full h-full hover:scale-105 transition-transform duration-300" />
                           {property.featured && <span className="absolute top-3 left-3 badge-featured">Featured</span>}
                           {property.isNew && <span className="absolute top-3 left-3 badge-new">New</span>}
-                          <button onClick={e => {
-                      e.preventDefault();
-                      toggleFavorite(property.id);
-                    }} className={cn('absolute top-3 right-3 p-2 rounded-full bg-background/80 backdrop-blur-sm transition-colors', favorites.includes(property.id) ? 'text-destructive' : 'text-muted-foreground hover:text-destructive')}>
+                          <button 
+                            onClick={e => {
+                              e.preventDefault();
+                              toggleFavorite(property.id);
+                            }} 
+                            className={cn('absolute top-3 right-3 p-2 rounded-full bg-background/80 backdrop-blur-sm transition-colors', favorites.includes(property.id) ? 'text-destructive' : 'text-muted-foreground hover:text-destructive')}
+                          >
                             <Heart className={cn('h-5 w-5', favorites.includes(property.id) && 'fill-current')} />
                           </button>
                         </div>
@@ -355,13 +394,16 @@ export default function Properties() {
                           </div>
                         </CardContent>
                       </Link>
-                    </Card>)}
-                </div>}
+                    </Card>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
       </main>
 
       <Footer />
-    </div>;
+    </div>
+  );
 }
