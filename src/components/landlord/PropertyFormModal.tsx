@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { X, Upload, Image as ImageIcon } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -34,6 +34,7 @@ interface PropertyFormModalProps {
 
 export function PropertyFormModal({ open, onClose, property, onSave }: PropertyFormModalProps) {
   const { user } = useAuth();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -43,15 +44,18 @@ export function PropertyFormModal({ open, onClose, property, onSave }: PropertyF
     city: '',
     state: '',
     zipCode: '',
+    country: '',
     bedrooms: '',
     bathrooms: '',
+    totalRooms: '',
     size: '',
     furnished: false,
     petFriendly: false,
     parkingSpaces: '',
     amenities: [] as string[],
-    availableFrom: '',
     minimumLease: '12',
+    rules: '',
+    images: [] as string[],
   });
 
   useEffect(() => {
@@ -65,15 +69,18 @@ export function PropertyFormModal({ open, onClose, property, onSave }: PropertyF
         city: property.address.city,
         state: property.address.state,
         zipCode: property.address.zipCode,
+        country: property.address.country,
         bedrooms: property.bedrooms.toString(),
         bathrooms: property.bathrooms.toString(),
+        totalRooms: ((property.bedrooms || 0) + 1).toString(),
         size: property.size.toString(),
         furnished: property.furnished,
         petFriendly: property.petFriendly,
         parkingSpaces: property.parkingSpaces.toString(),
         amenities: property.amenities,
-        availableFrom: property.availableFrom,
         minimumLease: property.minimumLease.toString(),
+        rules: property.rules?.join('\n') || '',
+        images: property.images || [],
       });
     } else {
       setFormData({
@@ -85,18 +92,44 @@ export function PropertyFormModal({ open, onClose, property, onSave }: PropertyF
         city: '',
         state: '',
         zipCode: '',
+        country: '',
         bedrooms: '',
         bathrooms: '',
+        totalRooms: '',
         size: '',
         furnished: false,
         petFriendly: false,
         parkingSpaces: '0',
         amenities: [],
-        availableFrom: new Date().toISOString().split('T')[0],
         minimumLease: '12',
+        rules: '',
+        images: [],
       });
     }
   }, [property, open]);
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+
+    Array.from(files).forEach(file => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData(prev => ({
+          ...prev,
+          images: [...prev.images, reader.result as string],
+        }));
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const removeImage = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      images: prev.images.filter((_, i) => i !== index),
+    }));
+  };
 
   const handleSubmit = () => {
     if (!user) return;
@@ -120,7 +153,7 @@ export function PropertyFormModal({ open, onClose, property, onSave }: PropertyF
         city: formData.city,
         state: formData.state,
         zipCode: formData.zipCode,
-        country: 'USA',
+        country: formData.country || 'USA',
       },
       bedrooms: parseInt(formData.bedrooms) || 0,
       bathrooms: parseInt(formData.bathrooms) || 1,
@@ -129,8 +162,10 @@ export function PropertyFormModal({ open, onClose, property, onSave }: PropertyF
       petFriendly: formData.petFriendly,
       parkingSpaces: parseInt(formData.parkingSpaces) || 0,
       amenities: formData.amenities,
-      availableFrom: formData.availableFrom,
+      availableFrom: new Date().toISOString().split('T')[0],
       minimumLease: parseInt(formData.minimumLease) || 12,
+      rules: formData.rules.split('\n').filter(r => r.trim()),
+      images: formData.images,
     };
 
     if (property) {
@@ -240,7 +275,7 @@ export function PropertyFormModal({ open, onClose, property, onSave }: PropertyF
                   placeholder="123 Main St, Apt 4B"
                 />
               </div>
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="city">City *</Label>
                   <Input
@@ -259,6 +294,8 @@ export function PropertyFormModal({ open, onClose, property, onSave }: PropertyF
                     placeholder="CA"
                   />
                 </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="zipCode">ZIP Code</Label>
                   <Input
@@ -268,6 +305,15 @@ export function PropertyFormModal({ open, onClose, property, onSave }: PropertyF
                     placeholder="94102"
                   />
                 </div>
+                <div className="space-y-2">
+                  <Label htmlFor="country">Country</Label>
+                  <Input
+                    id="country"
+                    value={formData.country}
+                    onChange={(e) => setFormData(prev => ({ ...prev, country: e.target.value }))}
+                    placeholder="USA"
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -275,7 +321,17 @@ export function PropertyFormModal({ open, onClose, property, onSave }: PropertyF
           {/* Details */}
           <div className="space-y-4">
             <h3 className="font-semibold">Property Details</h3>
-            <div className="grid grid-cols-4 gap-4">
+            <div className="grid grid-cols-5 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="totalRooms">Total Rooms</Label>
+                <Input
+                  id="totalRooms"
+                  type="number"
+                  value={formData.totalRooms}
+                  onChange={(e) => setFormData(prev => ({ ...prev, totalRooms: e.target.value }))}
+                  placeholder="5"
+                />
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="bedrooms">Bedrooms</Label>
                 <Input
@@ -341,26 +397,83 @@ export function PropertyFormModal({ open, onClose, property, onSave }: PropertyF
           {/* Lease Terms */}
           <div className="space-y-4">
             <h3 className="font-semibold">Lease Terms</h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="availableFrom">Available From</Label>
-                <Input
-                  id="availableFrom"
-                  type="date"
-                  value={formData.availableFrom}
-                  onChange={(e) => setFormData(prev => ({ ...prev, availableFrom: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="minimumLease">Minimum Lease (months)</Label>
-                <Input
-                  id="minimumLease"
-                  type="number"
-                  value={formData.minimumLease}
-                  onChange={(e) => setFormData(prev => ({ ...prev, minimumLease: e.target.value }))}
-                  placeholder="12"
-                />
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="minimumLease">Minimum Lease (months)</Label>
+              <Input
+                id="minimumLease"
+                type="number"
+                value={formData.minimumLease}
+                onChange={(e) => setFormData(prev => ({ ...prev, minimumLease: e.target.value }))}
+                placeholder="12"
+                className="max-w-xs"
+              />
+            </div>
+          </div>
+
+          {/* Rules */}
+          <div className="space-y-4">
+            <h3 className="font-semibold">Property Rules</h3>
+            <div className="space-y-2">
+              <Label htmlFor="rules">Rules (one per line)</Label>
+              <Textarea
+                id="rules"
+                value={formData.rules}
+                onChange={(e) => setFormData(prev => ({ ...prev, rules: e.target.value }))}
+                placeholder="No smoking&#10;No loud music after 10pm&#10;No subletting"
+                rows={4}
+              />
+            </div>
+          </div>
+
+          {/* Images */}
+          <div className="space-y-4">
+            <h3 className="font-semibold">Property Images</h3>
+            <div className="space-y-4">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={handleImageUpload}
+                className="hidden"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full border-dashed"
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                Upload Images
+              </Button>
+              
+              {formData.images.length > 0 && (
+                <div className="grid grid-cols-4 gap-2">
+                  {formData.images.map((img, index) => (
+                    <div key={index} className="relative group aspect-square">
+                      <img
+                        src={img}
+                        alt={`Property ${index + 1}`}
+                        className="w-full h-full object-cover rounded-md"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeImage(index)}
+                        className="absolute top-1 right-1 p-1 bg-destructive text-destructive-foreground rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              {formData.images.length === 0 && (
+                <div className="flex items-center justify-center p-8 border border-dashed rounded-lg text-muted-foreground">
+                  <ImageIcon className="h-8 w-8 mr-2" />
+                  <span>No images uploaded yet</span>
+                </div>
+              )}
             </div>
           </div>
 
