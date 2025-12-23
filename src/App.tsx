@@ -28,6 +28,7 @@ import Notifications from "./pages/dashboard/Notifications";
 
 const queryClient = new QueryClient();
 
+// Main App component
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
