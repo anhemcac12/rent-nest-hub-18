@@ -1,34 +1,68 @@
-import React, { createContext, useContext, useState } from 'react';
-import { Tenant } from '@/types/tenant';
-import { mockTenant } from '@/data/mockTenant';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { CurrentUser, UserRole } from '@/types/user';
+import { getCurrentUser, loginUser, signupUser, logoutUser } from '@/lib/mockDatabase';
 
 interface AuthContextType {
-  tenant: Tenant | null;
+  user: CurrentUser | null;
   isAuthenticated: boolean;
-  login: () => void;
+  isLoading: boolean;
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  signup: (email: string, password: string, firstName: string, lastName: string, role: UserRole) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  // Mock auth state - always logged in for dashboard demo
-  const [tenant, setTenant] = useState<Tenant | null>(mockTenant);
+  const [user, setUser] = useState<CurrentUser | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const login = () => {
-    setTenant(mockTenant);
+  // Restore session on mount
+  useEffect(() => {
+    const storedUser = getCurrentUser();
+    if (storedUser) {
+      setUser(storedUser);
+    }
+    setIsLoading(false);
+  }, []);
+
+  const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+    const result = loginUser(email, password);
+    if (result.success && result.user) {
+      setUser(result.user);
+      return { success: true };
+    }
+    return { success: false, error: result.error };
+  };
+
+  const signup = async (
+    email: string,
+    password: string,
+    firstName: string,
+    lastName: string,
+    role: UserRole
+  ): Promise<{ success: boolean; error?: string }> => {
+    const result = signupUser(email, password, firstName, lastName, role);
+    if (result.success && result.user) {
+      setUser(result.user);
+      return { success: true };
+    }
+    return { success: false, error: result.error };
   };
 
   const logout = () => {
-    setTenant(null);
+    logoutUser();
+    setUser(null);
   };
 
   return (
     <AuthContext.Provider
       value={{
-        tenant,
-        isAuthenticated: !!tenant,
+        user,
+        isAuthenticated: !!user,
+        isLoading,
         login,
+        signup,
         logout,
       }}
     >

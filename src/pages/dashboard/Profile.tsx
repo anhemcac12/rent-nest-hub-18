@@ -41,22 +41,22 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
 export default function Profile() {
-  const { tenant, logout } = useAuth();
+  const { user, logout } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
-    firstName: tenant?.firstName || '',
-    lastName: tenant?.lastName || '',
-    email: tenant?.email || '',
-    phone: tenant?.phone || '',
-    bio: tenant?.bio || '',
-    emergencyName: tenant?.emergencyContact?.name || '',
-    emergencyPhone: tenant?.emergencyContact?.phone || '',
-    emergencyRelationship: tenant?.emergencyContact?.relationship || '',
+    firstName: user?.firstName || '',
+    lastName: user?.lastName || '',
+    email: user?.email || '',
+    phone: '',
+    bio: '',
+    emergencyName: '',
+    emergencyPhone: '',
+    emergencyRelationship: '',
   });
   const [preferences, setPreferences] = useState({
-    emailNotifications: tenant?.preferences.emailNotifications ?? true,
-    smsAlerts: tenant?.preferences.smsAlerts ?? false,
-    language: tenant?.preferences.language || 'en',
+    emailNotifications: true,
+    smsAlerts: false,
+    language: 'en',
   });
 
   const handleInputChange = (field: string, value: string) => {
@@ -121,9 +121,9 @@ export default function Profile() {
           <div className="flex items-center gap-6">
             <div className="relative">
               <Avatar className="h-24 w-24">
-                <AvatarImage src={tenant?.avatar} />
+                <AvatarImage src={user?.avatar} />
                 <AvatarFallback className="text-2xl">
-                  {tenant?.firstName?.[0]}{tenant?.lastName?.[0]}
+                  {user?.firstName?.[0]}{user?.lastName?.[0]}
                 </AvatarFallback>
               </Avatar>
               {isEditing && (
@@ -139,11 +139,11 @@ export default function Profile() {
             </div>
             <div>
               <h3 className="font-semibold text-lg">
-                {tenant?.firstName} {tenant?.lastName}
+                {user?.firstName} {user?.lastName}
               </h3>
-              <p className="text-muted-foreground">{tenant?.email}</p>
+              <p className="text-muted-foreground">{user?.email}</p>
               <p className="text-sm text-muted-foreground">
-                Member since {tenant?.createdAt}
+                Role: {user?.role}
               </p>
             </div>
           </div>

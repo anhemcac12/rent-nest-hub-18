@@ -47,7 +47,7 @@ const accountNavItems = [
 
 export function DashboardSidebar() {
   const location = useLocation();
-  const { tenant, logout } = useAuth();
+  const { user, logout } = useAuth();
   const { state, toggleSidebar } = useSidebar();
   const isCollapsed = state === 'collapsed';
 
@@ -135,17 +135,17 @@ export function DashboardSidebar() {
         {!isCollapsed ? (
           <div className="flex items-center gap-3">
             <Avatar className="h-10 w-10">
-              <AvatarImage src={tenant?.avatar} />
+              <AvatarImage src={user?.avatar} />
               <AvatarFallback>
-                {tenant?.firstName?.[0]}{tenant?.lastName?.[0]}
+                {user?.firstName?.[0]}{user?.lastName?.[0]}
               </AvatarFallback>
             </Avatar>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-sidebar-foreground truncate">
-                {tenant?.firstName} {tenant?.lastName}
+                {user?.firstName} {user?.lastName}
               </p>
               <p className="text-xs text-muted-foreground truncate">
-                {tenant?.email}
+                {user?.email}
               </p>
             </div>
             <Button variant="ghost" size="icon" onClick={logout} className="shrink-0">
@@ -155,9 +155,9 @@ export function DashboardSidebar() {
         ) : (
           <div className="flex flex-col items-center gap-2">
             <Avatar className="h-8 w-8">
-              <AvatarImage src={tenant?.avatar} />
+              <AvatarImage src={user?.avatar} />
               <AvatarFallback>
-                {tenant?.firstName?.[0]}{tenant?.lastName?.[0]}
+                {user?.firstName?.[0]}{user?.lastName?.[0]}
               </AvatarFallback>
             </Avatar>
             <Button variant="ghost" size="icon" onClick={logout} className="h-8 w-8">

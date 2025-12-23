@@ -175,19 +175,19 @@ function MessageThread({
 
 export default function Messages() {
   const { id } = useParams();
-  const { tenant } = useAuth();
+  const { user } = useAuth();
   const [selectedId, setSelectedId] = useState<string | null>(id || mockConversations[0]?.id || null);
   const [conversations, setConversations] = useState(mockConversations);
 
   const selectedConversation = conversations.find((c) => c.id === selectedId);
 
   const handleSendMessage = (content: string) => {
-    if (!selectedConversation || !tenant) return;
+    if (!selectedConversation || !user) return;
 
     const newMessage: Message = {
       id: `m${Date.now()}`,
       conversationId: selectedConversation.id,
-      senderId: tenant.id,
+      senderId: user.id,
       senderType: 'tenant',
       content,
       timestamp: new Date().toISOString(),
@@ -242,10 +242,10 @@ export default function Messages() {
 
         {/* Message Thread */}
         <Card className="lg:col-span-2 flex flex-col">
-          {selectedConversation && tenant ? (
+          {selectedConversation && user ? (
             <MessageThread
               conversation={selectedConversation}
-              tenantId={tenant.id}
+              tenantId={user.id}
               onSendMessage={handleSendMessage}
             />
           ) : (

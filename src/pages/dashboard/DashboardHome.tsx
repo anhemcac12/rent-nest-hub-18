@@ -25,7 +25,7 @@ import {
 } from '@/data/mockTenant';
 
 export default function DashboardHome() {
-  const { tenant } = useAuth();
+  const { user } = useAuth();
 
   const currentRental = mockRentals.find((r) => r.status === 'active');
   const pendingPayment = mockPayments.find((p) => p.status === 'pending');
@@ -43,7 +43,7 @@ export default function DashboardHome() {
       {/* Welcome Header */}
       <div>
         <h1 className="text-3xl font-bold">
-          Welcome back, {tenant?.firstName}!
+          Welcome back, {user?.firstName}!
         </h1>
         <p className="text-muted-foreground mt-1">
           Here's what's happening with your rentals
