@@ -138,3 +138,14 @@ export interface ActivityItem {
   timestamp: string;
   link?: string;
 }
+
+export interface Notification {
+  id: string;
+  userId: string;
+  type: 'application' | 'message' | 'property' | 'payment' | 'maintenance' | 'system';
+  title: string;
+  description: string;
+  read: boolean;
+  link?: string;
+  createdAt: string;
+}
