@@ -16,13 +16,33 @@ import { PROPERTY_TYPES, AMENITIES } from '@/types/property';
 import { cn } from '@/lib/utils';
 export default function Properties() {
   const [searchQuery, setSearchQuery] = useState('');
-  const [priceRange, setPriceRange] = useState([0, 6000]);
-  const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
-  const [selectedBedrooms, setSelectedBedrooms] = useState<string>('any');
-  const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState('newest');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [favorites, setFavorites] = useState<string[]>([]);
+  
+  // Draft filter state (before applying)
+  const [draftPriceRange, setDraftPriceRange] = useState([0, 6000]);
+  const [draftSelectedTypes, setDraftSelectedTypes] = useState<string[]>([]);
+  const [draftSelectedBedrooms, setDraftSelectedBedrooms] = useState<string>('any');
+  const [draftSelectedAmenities, setDraftSelectedAmenities] = useState<string[]>([]);
+  
+  // Applied filter state
+  const [appliedFilters, setAppliedFilters] = useState({
+    priceRange: [0, 6000],
+    selectedTypes: [] as string[],
+    selectedBedrooms: 'any',
+    selectedAmenities: [] as string[],
+  });
+
+  const applyFilters = () => {
+    setAppliedFilters({
+      priceRange: draftPriceRange,
+      selectedTypes: draftSelectedTypes,
+      selectedBedrooms: draftSelectedBedrooms,
+      selectedAmenities: draftSelectedAmenities,
+    });
+  };
+
   const filteredProperties = useMemo(() => {
     let result = [...mockProperties];
 
@@ -33,22 +53,22 @@ export default function Properties() {
     }
 
     // Price filter
-    result = result.filter(p => p.price >= priceRange[0] && p.price <= priceRange[1]);
+    result = result.filter(p => p.price >= appliedFilters.priceRange[0] && p.price <= appliedFilters.priceRange[1]);
 
     // Type filter
-    if (selectedTypes.length > 0) {
-      result = result.filter(p => selectedTypes.includes(p.type));
+    if (appliedFilters.selectedTypes.length > 0) {
+      result = result.filter(p => appliedFilters.selectedTypes.includes(p.type));
     }
 
     // Bedrooms filter
-    if (selectedBedrooms !== 'any') {
-      const beds = parseInt(selectedBedrooms);
+    if (appliedFilters.selectedBedrooms !== 'any') {
+      const beds = parseInt(appliedFilters.selectedBedrooms);
       result = result.filter(p => beds === 4 ? p.bedrooms >= 4 : p.bedrooms === beds);
     }
 
     // Amenities filter
-    if (selectedAmenities.length > 0) {
-      result = result.filter(p => selectedAmenities.every(a => p.amenities.includes(a)));
+    if (appliedFilters.selectedAmenities.length > 0) {
+      result = result.filter(p => appliedFilters.selectedAmenities.every(a => p.amenities.includes(a)));
     }
 
     // Sort
@@ -67,66 +87,165 @@ export default function Properties() {
         break;
     }
     return result;
-  }, [searchQuery, priceRange, selectedTypes, selectedBedrooms, selectedAmenities, sortBy]);
+  }, [searchQuery, appliedFilters, sortBy]);
+
   const toggleFavorite = (id: string) => {
     setFavorites(prev => prev.includes(id) ? prev.filter(f => f !== id) : [...prev, id]);
   };
+
   const toggleType = (type: string) => {
-    setSelectedTypes(prev => prev.includes(type) ? prev.filter(t => t !== type) : [...prev, type]);
+    setDraftSelectedTypes(prev => prev.includes(type) ? prev.filter(t => t !== type) : [...prev, type]);
   };
+
   const toggleAmenity = (amenity: string) => {
-    setSelectedAmenities(prev => prev.includes(amenity) ? prev.filter(a => a !== amenity) : [...prev, amenity]);
+    setDraftSelectedAmenities(prev => prev.includes(amenity) ? prev.filter(a => a !== amenity) : [...prev, amenity]);
   };
+
   const clearFilters = () => {
     setSearchQuery('');
-    setPriceRange([0, 6000]);
-    setSelectedTypes([]);
-    setSelectedBedrooms('any');
-    setSelectedAmenities([]);
+    setDraftPriceRange([0, 6000]);
+    setDraftSelectedTypes([]);
+    setDraftSelectedBedrooms('any');
+    setDraftSelectedAmenities([]);
+    setAppliedFilters({
+      priceRange: [0, 6000],
+      selectedTypes: [],
+      selectedBedrooms: 'any',
+      selectedAmenities: [],
+    });
   };
-  const hasActiveFilters = searchQuery || priceRange[0] > 0 || priceRange[1] < 6000 || selectedTypes.length > 0 || selectedBedrooms !== 'any' || selectedAmenities.length > 0;
-  const FiltersContent = () => <div className="space-y-6">
+
+  const hasActiveFilters = appliedFilters.priceRange[0] > 0 || appliedFilters.priceRange[1] < 6000 || appliedFilters.selectedTypes.length > 0 || appliedFilters.selectedBedrooms !== 'any' || appliedFilters.selectedAmenities.length > 0;
+  
+  const hasDraftChanges = 
+    draftPriceRange[0] !== appliedFilters.priceRange[0] ||
+    draftPriceRange[1] !== appliedFilters.priceRange[1] ||
+    JSON.stringify(draftSelectedTypes) !== JSON.stringify(appliedFilters.selectedTypes) ||
+    draftSelectedBedrooms !== appliedFilters.selectedBedrooms ||
+    JSON.stringify(draftSelectedAmenities) !== JSON.stringify(appliedFilters.selectedAmenities);
+  const FiltersContent = () => (
+    <div className="space-y-5">
       {/* Price Range */}
-      <div>
-        <Label className="text-sm font-medium mb-3 block">Price Range</Label>
-        <Slider value={priceRange} onValueChange={setPriceRange} min={0} max={6000} step={100} className="mb-2" />
-        <div className="flex justify-between text-sm text-muted-foreground">
-          <span>${priceRange[0].toLocaleString()}</span>
-          <span>${priceRange[1].toLocaleString()}+</span>
+      <div className="space-y-3">
+        <Label className="text-sm font-semibold text-foreground">Price Range</Label>
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+            <Input
+              type="number"
+              value={draftPriceRange[0]}
+              onChange={(e) => setDraftPriceRange([Number(e.target.value), draftPriceRange[1]])}
+              className="pl-7 h-10 text-sm"
+              placeholder="Min"
+            />
+          </div>
+          <span className="text-muted-foreground">—</span>
+          <div className="relative flex-1">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+            <Input
+              type="number"
+              value={draftPriceRange[1]}
+              onChange={(e) => setDraftPriceRange([draftPriceRange[0], Number(e.target.value)])}
+              className="pl-7 h-10 text-sm"
+              placeholder="Max"
+            />
+          </div>
         </div>
+        <Slider 
+          value={draftPriceRange} 
+          onValueChange={setDraftPriceRange} 
+          min={0} 
+          max={6000} 
+          step={100} 
+        />
       </div>
 
       {/* Property Type */}
-      <div>
-        <Label className="text-sm font-medium mb-3 block">Property Type</Label>
-        <div className="grid grid-cols-2 gap-2">
-          {PROPERTY_TYPES.map(type => <button key={type.value} onClick={() => toggleType(type.value)} className={cn('px-3 py-2 text-sm rounded-lg border transition-colors', selectedTypes.includes(type.value) ? 'bg-primary text-primary-foreground border-primary' : 'border-border hover:border-primary')}>
+      <div className="space-y-3">
+        <Label className="text-sm font-semibold text-foreground">Property Type</Label>
+        <div className="flex flex-wrap gap-2">
+          {PROPERTY_TYPES.map(type => (
+            <button 
+              key={type.value} 
+              onClick={() => toggleType(type.value)} 
+              className={cn(
+                'px-3 py-1.5 text-xs rounded-full border transition-all',
+                draftSelectedTypes.includes(type.value) 
+                  ? 'bg-primary text-primary-foreground border-primary' 
+                  : 'border-border hover:border-primary hover:bg-primary/5'
+              )}
+            >
               {type.label}
-            </button>)}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Bedrooms */}
-      <div>
-        
-        
+      {/* Room Number */}
+      <div className="space-y-3">
+        <Label className="text-sm font-semibold text-foreground">Room Number</Label>
+        <div className="flex gap-2">
+          {['any', '1', '2', '3', '4'].map(num => (
+            <button
+              key={num}
+              onClick={() => setDraftSelectedBedrooms(num)}
+              className={cn(
+                'flex-1 py-2 text-sm rounded-lg border transition-all',
+                draftSelectedBedrooms === num
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'border-border hover:border-primary hover:bg-primary/5'
+              )}
+            >
+              {num === 'any' ? 'Any' : num === '4' ? '4+' : num}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Amenities */}
-      <div>
-        <Label className="text-sm font-medium mb-3 block">Amenities</Label>
-        <div className="grid grid-cols-2 gap-3">
-          {AMENITIES.slice(0, 10).map(amenity => <div key={amenity} className="flex items-center gap-2">
-              <Checkbox id={amenity} checked={selectedAmenities.includes(amenity)} onCheckedChange={() => toggleAmenity(amenity)} />
-              <Label htmlFor={amenity} className="text-sm cursor-pointer">{amenity}</Label>
-            </div>)}
+      <div className="space-y-3">
+        <Label className="text-sm font-semibold text-foreground">Amenities</Label>
+        <div className="grid grid-cols-2 gap-2">
+          {AMENITIES.slice(0, 8).map(amenity => (
+            <div 
+              key={amenity} 
+              onClick={() => toggleAmenity(amenity)}
+              className={cn(
+                'flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition-all text-xs',
+                draftSelectedAmenities.includes(amenity)
+                  ? 'bg-primary/10 border-primary text-primary'
+                  : 'border-border hover:border-primary/50'
+              )}
+            >
+              <Checkbox 
+                checked={draftSelectedAmenities.includes(amenity)} 
+                onCheckedChange={() => toggleAmenity(amenity)}
+                className="h-3.5 w-3.5"
+              />
+              <span>{amenity}</span>
+            </div>
+          ))}
         </div>
       </div>
 
-      {hasActiveFilters && <Button variant="outline" onClick={clearFilters} className="w-full">
-          <X className="mr-2 h-4 w-4" /> Clear All Filters
-        </Button>}
-    </div>;
+      {/* Action Buttons */}
+      <div className="pt-3 space-y-2 border-t border-border">
+        <Button 
+          onClick={applyFilters} 
+          className="w-full"
+          disabled={!hasDraftChanges}
+        >
+          <Search className="mr-2 h-4 w-4" />
+          Apply Filters
+        </Button>
+        {hasActiveFilters && (
+          <Button variant="ghost" onClick={clearFilters} className="w-full text-muted-foreground">
+            <X className="mr-2 h-4 w-4" /> Clear All
+          </Button>
+        )}
+      </div>
+    </div>
+  );
   return <div className="min-h-screen flex flex-col">
       <Header />
       
