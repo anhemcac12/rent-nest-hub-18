@@ -1,6 +1,8 @@
 import { User, CurrentUser, UserRole } from '@/types/user';
 import { Application, ApplicationEvent, Conversation, Message, Notification } from '@/types/tenant';
-import { getPropertyById } from '@/data/mockProperties';
+import { Property } from '@/types/property';
+import { getPropertyById, mockProperties } from '@/data/mockProperties';
+import { PropertyManager, LeaseAgreement } from '@/types/landlord';
 
 const USERS_KEY = 'rentmate_users';
 const CURRENT_USER_KEY = 'rentmate_current_user';
@@ -413,9 +415,6 @@ export function getUnreadNotificationCount(userId: string): number {
 // =====================
 // LANDLORD FUNCTIONS
 // =====================
-
-import { mockProperties } from '@/data/mockProperties';
-import { PropertyManager, LeaseAgreement } from '@/types/landlord';
 
 const LANDLORD_PROPERTIES_KEY = 'rentmate_landlord_properties';
 const LEASE_AGREEMENTS_KEY = 'rentmate_lease_agreements';
