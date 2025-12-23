@@ -26,6 +26,13 @@ import Documents from "./pages/dashboard/Documents";
 import Profile from "./pages/dashboard/Profile";
 import Notifications from "./pages/dashboard/Notifications";
 
+// Landlord Dashboard imports
+import LandlordDashboardHome from "./pages/dashboard/landlord/LandlordDashboardHome";
+import LandlordProperties from "./pages/dashboard/landlord/LandlordProperties";
+import LandlordApplications from "./pages/dashboard/landlord/LandlordApplications";
+import LeaseAgreements from "./pages/dashboard/landlord/LeaseAgreements";
+import LandlordMessages from "./pages/dashboard/landlord/LandlordMessages";
+
 const queryClient = new QueryClient();
 
 // Main App component
@@ -47,7 +54,12 @@ const App = () => (
             
             {/* Dashboard Routes */}
             <Route path="/dashboard" element={<DashboardLayout />}>
+              {/* Common routes - role-aware home */}
               <Route index element={<DashboardHome />} />
+              <Route path="profile" element={<Profile />} />
+              <Route path="notifications" element={<Notifications />} />
+              
+              {/* Tenant-specific routes */}
               <Route path="rentals" element={<Rentals />} />
               <Route path="saved" element={<SavedProperties />} />
               <Route path="applications" element={<Applications />} />
@@ -56,8 +68,10 @@ const App = () => (
               <Route path="messages/:id" element={<Messages />} />
               <Route path="maintenance" element={<Maintenance />} />
               <Route path="documents" element={<Documents />} />
-              <Route path="profile" element={<Profile />} />
-              <Route path="notifications" element={<Notifications />} />
+              
+              {/* Landlord-specific routes */}
+              <Route path="properties" element={<LandlordProperties />} />
+              <Route path="leases" element={<LeaseAgreements />} />
             </Route>
             
             <Route path="*" element={<NotFound />} />
