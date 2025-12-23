@@ -1,5 +1,5 @@
 import { User, CurrentUser, UserRole } from '@/types/user';
-import { Application, ApplicationEvent, Conversation, Message } from '@/types/tenant';
+import { Application, ApplicationEvent, Conversation, Message, Notification } from '@/types/tenant';
 import { getPropertyById } from '@/data/mockProperties';
 
 const USERS_KEY = 'rentmate_users';
@@ -7,6 +7,7 @@ const CURRENT_USER_KEY = 'rentmate_current_user';
 const SAVED_PROPERTIES_KEY = 'rentmate_saved_properties';
 const APPLICATIONS_KEY = 'rentmate_applications';
 const CONVERSATIONS_KEY = 'rentmate_conversations';
+const NOTIFICATIONS_KEY = 'rentmate_notifications';
 
 // Pre-seeded test accounts
 const seedUsers: User[] = [
@@ -231,6 +232,15 @@ export function createApplication(
   apps.push(newApplication);
   localStorage.setItem(getApplicationsKey(userId), JSON.stringify(apps));
 
+  // Create notification for the landlord
+  createNotification(
+    property.landlord.id,
+    'application',
+    'New Lease Application',
+    `You received a new application for ${property.title}`,
+    '/dashboard/applications'
+  );
+
   return newApplication;
 }
 
@@ -317,10 +327,85 @@ export function createConversation(
   convs.push(newConversation);
   localStorage.setItem(getConversationsKey(userId), JSON.stringify(convs));
 
+  // Create notification for the landlord
+  createNotification(
+    landlordId,
+    'message',
+    'New Message',
+    `You received a new message about ${propertyTitle}`,
+    '/dashboard/messages'
+  );
+
   return newConversation;
 }
 
 export function getConversationByProperty(userId: string, propertyId: string): Conversation | undefined {
   const convs = getConversations(userId);
   return convs.find((c) => c.propertyId === propertyId);
+}
+
+// =====================
+// NOTIFICATIONS
+// =====================
+
+function getNotificationsKey(userId: string): string {
+  return `${NOTIFICATIONS_KEY}_${userId}`;
+}
+
+export function getNotifications(userId: string): Notification[] {
+  const notifs = localStorage.getItem(getNotificationsKey(userId));
+  return notifs ? JSON.parse(notifs) : [];
+}
+
+export function createNotification(
+  userId: string,
+  type: Notification['type'],
+  title: string,
+  description: string,
+  link?: string
+): Notification {
+  const now = new Date().toISOString();
+  const notifId = `notif-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+  const newNotification: Notification = {
+    id: notifId,
+    userId,
+    type,
+    title,
+    description,
+    read: false,
+    link,
+    createdAt: now,
+  };
+
+  const notifs = getNotifications(userId);
+  notifs.unshift(newNotification); // Add to beginning
+  localStorage.setItem(getNotificationsKey(userId), JSON.stringify(notifs));
+
+  return newNotification;
+}
+
+export function markNotificationAsRead(userId: string, notificationId: string): void {
+  const notifs = getNotifications(userId);
+  const updated = notifs.map((n) => 
+    n.id === notificationId ? { ...n, read: true } : n
+  );
+  localStorage.setItem(getNotificationsKey(userId), JSON.stringify(updated));
+}
+
+export function markAllNotificationsAsRead(userId: string): void {
+  const notifs = getNotifications(userId);
+  const updated = notifs.map((n) => ({ ...n, read: true }));
+  localStorage.setItem(getNotificationsKey(userId), JSON.stringify(updated));
+}
+
+export function deleteNotification(userId: string, notificationId: string): void {
+  const notifs = getNotifications(userId);
+  const updated = notifs.filter((n) => n.id !== notificationId);
+  localStorage.setItem(getNotificationsKey(userId), JSON.stringify(updated));
+}
+
+export function getUnreadNotificationCount(userId: string): number {
+  const notifs = getNotifications(userId);
+  return notifs.filter((n) => !n.read).length;
 }

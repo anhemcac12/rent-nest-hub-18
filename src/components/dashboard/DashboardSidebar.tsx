@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
   Home,
@@ -11,6 +12,7 @@ import {
   User,
   LogOut,
   ChevronLeft,
+  Bell,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -29,6 +31,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
+import { getUnreadNotificationCount } from '@/lib/mockDatabase';
+import { Badge } from '@/components/ui/badge';
 
 const mainNavItems = [
   { title: 'Dashboard', url: '/dashboard', icon: Home },
@@ -37,6 +41,7 @@ const mainNavItems = [
   { title: 'Applications', url: '/dashboard/applications', icon: FileText },
   { title: 'Payments', url: '/dashboard/payments', icon: CreditCard },
   { title: 'Messages', url: '/dashboard/messages', icon: MessageSquare },
+  { title: 'Notifications', url: '/dashboard/notifications', icon: Bell, showBadge: true },
   { title: 'Maintenance', url: '/dashboard/maintenance', icon: Wrench },
   { title: 'Documents', url: '/dashboard/documents', icon: FolderOpen },
 ];
@@ -50,6 +55,13 @@ export function DashboardSidebar() {
   const { user, logout } = useAuth();
   const { state, toggleSidebar } = useSidebar();
   const isCollapsed = state === 'collapsed';
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    if (user) {
+      setUnreadCount(getUnreadNotificationCount(user.id));
+    }
+  }, [user, location.pathname]);
 
   const isActive = (path: string) => {
     if (path === '/dashboard') {
@@ -95,9 +107,16 @@ export function DashboardSidebar() {
                     isActive={isActive(item.url)}
                     tooltip={item.title}
                   >
-                    <NavLink to={item.url}>
-                      <item.icon className="h-4 w-4" />
-                      <span>{item.title}</span>
+                    <NavLink to={item.url} className="flex items-center justify-between w-full">
+                      <span className="flex items-center gap-2">
+                        <item.icon className="h-4 w-4" />
+                        <span>{item.title}</span>
+                      </span>
+                      {item.showBadge && unreadCount > 0 && !isCollapsed && (
+                        <Badge variant="destructive" className="text-xs px-1.5 py-0.5 h-5">
+                          {unreadCount > 9 ? '9+' : unreadCount}
+                        </Badge>
+                      )}
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

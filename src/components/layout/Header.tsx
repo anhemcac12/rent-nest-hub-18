@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Menu, X, Home, Search, Info, Phone, HelpCircle, LogIn, UserPlus, LayoutDashboard, LogOut } from 'lucide-react';
+import { Menu, X, Home, Search, Info, Phone, HelpCircle, LogIn, UserPlus, LayoutDashboard, LogOut, Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -13,6 +13,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { getNotifications, markNotificationAsRead, getUnreadNotificationCount } from '@/lib/mockDatabase';
+import { Notification } from '@/types/tenant';
+import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { format } from 'date-fns';
 
 const navLinks = [
   { to: '/', label: 'Home', icon: Home },
@@ -24,9 +29,18 @@ const navLinks = [
 
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
   const location = useLocation();
   const navigate = useNavigate();
   const { user, isAuthenticated, logout } = useAuth();
+
+  useEffect(() => {
+    if (user) {
+      setNotifications(getNotifications(user.id).slice(0, 5));
+      setUnreadCount(getUnreadNotificationCount(user.id));
+    }
+  }, [user, location.pathname]);
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -38,6 +52,18 @@ export function Header() {
   const getInitials = () => {
     if (!user) return 'U';
     return `${user.firstName[0]}${user.lastName[0]}`.toUpperCase();
+  };
+
+  const handleNotificationClick = (notification: Notification) => {
+    if (!user) return;
+    if (!notification.read) {
+      markNotificationAsRead(user.id, notification.id);
+      setNotifications(getNotifications(user.id).slice(0, 5));
+      setUnreadCount(getUnreadNotificationCount(user.id));
+    }
+    if (notification.link) {
+      navigate(notification.link);
+    }
   };
 
   return (
@@ -70,40 +96,102 @@ export function Header() {
             ))}
           </nav>
 
-          {/* Auth Buttons / User Menu */}
           <div className="hidden md:flex items-center gap-3">
             {isAuthenticated && user ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-                    <Avatar className="h-10 w-10">
-                      <AvatarImage src={user.avatar} alt={user.firstName} />
-                      <AvatarFallback>{getInitials()}</AvatarFallback>
-                    </Avatar>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56" align="end" forceMount>
-                  <DropdownMenuLabel className="font-normal">
-                    <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-medium">{user.firstName} {user.lastName}</p>
-                      <p className="text-xs text-muted-foreground">{user.email}</p>
-                      <p className="text-xs text-muted-foreground capitalize">Role: {user.role}</p>
-                    </div>
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link to="/dashboard" className="cursor-pointer">
-                      <LayoutDashboard className="mr-2 h-4 w-4" />
-                      Dashboard
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-destructive">
-                    <LogOut className="mr-2 h-4 w-4" />
-                    Log out
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <>
+                {/* Notification Bell */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="relative">
+                      <Bell className="h-5 w-5" />
+                      {unreadCount > 0 && (
+                        <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-destructive text-destructive-foreground text-xs flex items-center justify-center font-medium">
+                          {unreadCount > 9 ? '9+' : unreadCount}
+                        </span>
+                      )}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-80" align="end" forceMount>
+                    <DropdownMenuLabel className="flex items-center justify-between">
+                      <span>Notifications</span>
+                      {unreadCount > 0 && (
+                        <Badge variant="secondary" className="text-xs">{unreadCount} new</Badge>
+                      )}
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <ScrollArea className="h-[300px]">
+                      {notifications.length === 0 ? (
+                        <div className="p-4 text-center text-sm text-muted-foreground">
+                          No notifications yet
+                        </div>
+                      ) : (
+                        notifications.map((notification) => (
+                          <DropdownMenuItem
+                            key={notification.id}
+                            className={cn(
+                              'flex flex-col items-start gap-1 p-3 cursor-pointer',
+                              !notification.read && 'bg-primary/5'
+                            )}
+                            onClick={() => handleNotificationClick(notification)}
+                          >
+                            <div className="flex items-center gap-2 w-full">
+                              <span className="font-medium text-sm">{notification.title}</span>
+                              {!notification.read && (
+                                <span className="h-2 w-2 rounded-full bg-primary" />
+                              )}
+                            </div>
+                            <span className="text-xs text-muted-foreground line-clamp-1">
+                              {notification.description}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              {format(new Date(notification.createdAt), 'MMM d, h:mm a')}
+                            </span>
+                          </DropdownMenuItem>
+                        ))
+                      )}
+                    </ScrollArea>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild className="justify-center">
+                      <Link to="/dashboard/notifications" className="w-full text-center text-sm">
+                        View all notifications
+                      </Link>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
+                {/* User Avatar */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage src={user.avatar} alt={user.firstName} />
+                        <AvatarFallback>{getInitials()}</AvatarFallback>
+                      </Avatar>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-56" align="end" forceMount>
+                    <DropdownMenuLabel className="font-normal">
+                      <div className="flex flex-col space-y-1">
+                        <p className="text-sm font-medium">{user.firstName} {user.lastName}</p>
+                        <p className="text-xs text-muted-foreground">{user.email}</p>
+                        <p className="text-xs text-muted-foreground capitalize">Role: {user.role}</p>
+                      </div>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <Link to="/dashboard" className="cursor-pointer">
+                        <LayoutDashboard className="mr-2 h-4 w-4" />
+                        Dashboard
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-destructive">
+                      <LogOut className="mr-2 h-4 w-4" />
+                      Log out
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </>
             ) : (
               <>
                 <Button variant="ghost" asChild>

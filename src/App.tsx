@@ -24,6 +24,7 @@ import Messages from "./pages/dashboard/Messages";
 import Maintenance from "./pages/dashboard/Maintenance";
 import Documents from "./pages/dashboard/Documents";
 import Profile from "./pages/dashboard/Profile";
+import Notifications from "./pages/dashboard/Notifications";
 
 const queryClient = new QueryClient();
 
@@ -55,6 +56,7 @@ const App = () => (
               <Route path="maintenance" element={<Maintenance />} />
               <Route path="documents" element={<Documents />} />
               <Route path="profile" element={<Profile />} />
+              <Route path="notifications" element={<Notifications />} />
             </Route>
             
             <Route path="*" element={<NotFound />} />
