@@ -1,7 +1,12 @@
 import { User, CurrentUser, UserRole } from '@/types/user';
+import { Application, ApplicationEvent, Conversation, Message } from '@/types/tenant';
+import { getPropertyById } from '@/data/mockProperties';
 
 const USERS_KEY = 'rentmate_users';
 const CURRENT_USER_KEY = 'rentmate_current_user';
+const SAVED_PROPERTIES_KEY = 'rentmate_saved_properties';
+const APPLICATIONS_KEY = 'rentmate_applications';
+const CONVERSATIONS_KEY = 'rentmate_conversations';
 
 // Pre-seeded test accounts
 const seedUsers: User[] = [
@@ -143,4 +148,179 @@ export function signupUser(
 
 export function logoutUser(): void {
   clearSession();
+}
+
+// =====================
+// SAVED PROPERTIES
+// =====================
+
+function getSavedPropertiesKey(userId: string): string {
+  return `${SAVED_PROPERTIES_KEY}_${userId}`;
+}
+
+export function getSavedProperties(userId: string): string[] {
+  const saved = localStorage.getItem(getSavedPropertiesKey(userId));
+  return saved ? JSON.parse(saved) : [];
+}
+
+export function saveProperty(userId: string, propertyId: string): void {
+  const saved = getSavedProperties(userId);
+  if (!saved.includes(propertyId)) {
+    saved.push(propertyId);
+    localStorage.setItem(getSavedPropertiesKey(userId), JSON.stringify(saved));
+  }
+}
+
+export function unsaveProperty(userId: string, propertyId: string): void {
+  const saved = getSavedProperties(userId);
+  const updated = saved.filter((id) => id !== propertyId);
+  localStorage.setItem(getSavedPropertiesKey(userId), JSON.stringify(updated));
+}
+
+export function isPropertySaved(userId: string, propertyId: string): boolean {
+  const saved = getSavedProperties(userId);
+  return saved.includes(propertyId);
+}
+
+// =====================
+// APPLICATIONS
+// =====================
+
+function getApplicationsKey(userId: string): string {
+  return `${APPLICATIONS_KEY}_${userId}`;
+}
+
+export function getApplications(userId: string): Application[] {
+  const apps = localStorage.getItem(getApplicationsKey(userId));
+  return apps ? JSON.parse(apps) : [];
+}
+
+export function createApplication(
+  userId: string,
+  propertyId: string,
+  moveInDate: string,
+  message?: string
+): Application | null {
+  const property = getPropertyById(propertyId);
+  if (!property) return null;
+
+  const now = new Date().toISOString();
+  const appId = `app-${Date.now()}`;
+
+  const initialEvent: ApplicationEvent = {
+    id: `event-${Date.now()}`,
+    status: 'pending',
+    message: 'Application submitted',
+    timestamp: now,
+  };
+
+  const newApplication: Application = {
+    id: appId,
+    propertyId,
+    property,
+    tenantId: userId,
+    status: 'pending',
+    appliedAt: now,
+    updatedAt: now,
+    notes: message,
+    documents: [],
+    timeline: [initialEvent],
+  };
+
+  const apps = getApplications(userId);
+  apps.push(newApplication);
+  localStorage.setItem(getApplicationsKey(userId), JSON.stringify(apps));
+
+  return newApplication;
+}
+
+export function withdrawApplication(userId: string, applicationId: string): void {
+  const apps = getApplications(userId);
+  const updated = apps.map((app) => {
+    if (app.id === applicationId && app.status === 'pending') {
+      const now = new Date().toISOString();
+      return {
+        ...app,
+        status: 'withdrawn' as const,
+        updatedAt: now,
+        timeline: [
+          ...app.timeline,
+          {
+            id: `event-${Date.now()}`,
+            status: 'withdrawn' as const,
+            message: 'Application withdrawn by tenant',
+            timestamp: now,
+          },
+        ],
+      };
+    }
+    return app;
+  });
+  localStorage.setItem(getApplicationsKey(userId), JSON.stringify(updated));
+}
+
+export function hasAppliedToProperty(userId: string, propertyId: string): boolean {
+  const apps = getApplications(userId);
+  return apps.some((app) => app.propertyId === propertyId && app.status !== 'withdrawn');
+}
+
+// =====================
+// CONVERSATIONS
+// =====================
+
+function getConversationsKey(userId: string): string {
+  return `${CONVERSATIONS_KEY}_${userId}`;
+}
+
+export function getConversations(userId: string): Conversation[] {
+  const convs = localStorage.getItem(getConversationsKey(userId));
+  return convs ? JSON.parse(convs) : [];
+}
+
+export function createConversation(
+  userId: string,
+  landlordId: string,
+  landlordName: string,
+  landlordAvatar: string,
+  propertyId: string,
+  propertyTitle: string,
+  initialMessage: string
+): Conversation {
+  const now = new Date().toISOString();
+  const convId = `conv-${Date.now()}`;
+  const msgId = `msg-${Date.now()}`;
+
+  const message: Message = {
+    id: msgId,
+    conversationId: convId,
+    senderId: userId,
+    senderType: 'tenant',
+    content: initialMessage,
+    timestamp: now,
+    read: true,
+  };
+
+  const newConversation: Conversation = {
+    id: convId,
+    landlordId,
+    landlordName,
+    landlordAvatar,
+    propertyId,
+    propertyTitle,
+    lastMessage: initialMessage,
+    lastMessageAt: now,
+    unreadCount: 0,
+    messages: [message],
+  };
+
+  const convs = getConversations(userId);
+  convs.push(newConversation);
+  localStorage.setItem(getConversationsKey(userId), JSON.stringify(convs));
+
+  return newConversation;
+}
+
+export function getConversationByProperty(userId: string, propertyId: string): Conversation | undefined {
+  const convs = getConversations(userId);
+  return convs.find((c) => c.propertyId === propertyId);
 }
