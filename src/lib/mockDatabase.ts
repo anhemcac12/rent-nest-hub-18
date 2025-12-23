@@ -409,3 +409,294 @@ export function getUnreadNotificationCount(userId: string): number {
   const notifs = getNotifications(userId);
   return notifs.filter((n) => !n.read).length;
 }
+
+// =====================
+// LANDLORD FUNCTIONS
+// =====================
+
+import { mockProperties } from '@/data/mockProperties';
+import { PropertyManager, LeaseAgreement } from '@/types/landlord';
+
+const LANDLORD_PROPERTIES_KEY = 'rentmate_landlord_properties';
+const LEASE_AGREEMENTS_KEY = 'rentmate_lease_agreements';
+const PROPERTY_MANAGERS_KEY = 'rentmate_property_managers';
+const GLOBAL_APPLICATIONS_KEY = 'rentmate_global_applications';
+
+// Get properties owned by a landlord
+export function getLandlordProperties(landlordId: string): Property[] {
+  // For demo, return mock properties where landlord.id matches or use stored ones
+  const storedProps = localStorage.getItem(`${LANDLORD_PROPERTIES_KEY}_${landlordId}`);
+  const customProps: Property[] = storedProps ? JSON.parse(storedProps) : [];
+  
+  // Also include mock properties for demo landlord
+  const mockProps = mockProperties.filter(p => 
+    p.landlord.id === landlordId || 
+    (landlordId === 'landlord-001' && ['1', '2', '3'].includes(p.id))
+  );
+  
+  return [...mockProps, ...customProps];
+}
+
+// Add a new property for landlord
+export function addLandlordProperty(landlordId: string, propertyData: Partial<Property>): Property {
+  const user = getUsers().find(u => u.id === landlordId);
+  const newProperty: Property = {
+    id: `prop-${Date.now()}`,
+    title: propertyData.title || 'New Property',
+    description: propertyData.description || '',
+    type: propertyData.type || 'apartment',
+    status: 'available',
+    price: propertyData.price || 0,
+    currency: 'USD',
+    address: propertyData.address || { street: '', city: '', state: '', zipCode: '', country: 'USA' },
+    bedrooms: propertyData.bedrooms || 0,
+    bathrooms: propertyData.bathrooms || 1,
+    size: propertyData.size || 0,
+    furnished: propertyData.furnished || false,
+    petFriendly: propertyData.petFriendly || false,
+    parkingSpaces: propertyData.parkingSpaces || 0,
+    amenities: propertyData.amenities || [],
+    images: ['https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800'],
+    thumbnail: 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800',
+    landlord: {
+      id: landlordId,
+      name: user ? `${user.firstName} ${user.lastName}` : 'Unknown',
+      avatar: user?.avatar || '',
+      email: user?.email,
+      responseRate: 95,
+      responseTime: 'Within a day',
+      propertiesCount: 1,
+      verified: true,
+    },
+    rating: 0,
+    reviewsCount: 0,
+    availableFrom: propertyData.availableFrom || new Date().toISOString().split('T')[0],
+    minimumLease: propertyData.minimumLease || 12,
+    rules: [],
+    featured: false,
+    isNew: true,
+    verified: false,
+    views: 0,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+
+  const storedProps = localStorage.getItem(`${LANDLORD_PROPERTIES_KEY}_${landlordId}`);
+  const props: Property[] = storedProps ? JSON.parse(storedProps) : [];
+  props.push(newProperty);
+  localStorage.setItem(`${LANDLORD_PROPERTIES_KEY}_${landlordId}`, JSON.stringify(props));
+  
+  return newProperty;
+}
+
+// Update a landlord property
+export function updateLandlordProperty(propertyId: string, updates: Partial<Property>): boolean {
+  // Implementation for updating property
+  return true;
+}
+
+// Get all applications for landlord's properties
+export function getApplicationsForLandlord(landlordId: string): Application[] {
+  const properties = getLandlordProperties(landlordId);
+  const propertyIds = properties.map(p => p.id);
+  
+  // Get all applications from all users
+  const allUsers = getUsers();
+  const allApplications: Application[] = [];
+  
+  allUsers.forEach(user => {
+    const userApps = getApplications(user.id);
+    userApps.forEach(app => {
+      if (propertyIds.includes(app.propertyId)) {
+        allApplications.push(app);
+      }
+    });
+  });
+  
+  return allApplications;
+}
+
+// Update application status (approve/reject)
+export function updateApplicationStatus(
+  applicationId: string,
+  status: 'approved' | 'rejected',
+  message?: string
+): boolean {
+  const allUsers = getUsers();
+  
+  for (const user of allUsers) {
+    const apps = getApplications(user.id);
+    const appIndex = apps.findIndex(a => a.id === applicationId);
+    
+    if (appIndex !== -1) {
+      const app = apps[appIndex];
+      const now = new Date().toISOString();
+      
+      apps[appIndex] = {
+        ...app,
+        status,
+        updatedAt: now,
+        timeline: [
+          ...app.timeline,
+          {
+            id: `event-${Date.now()}`,
+            status,
+            message: message || (status === 'approved' ? 'Application approved' : 'Application rejected'),
+            timestamp: now,
+          },
+        ],
+      };
+      
+      localStorage.setItem(`${APPLICATIONS_KEY}_${user.id}`, JSON.stringify(apps));
+      
+      // Create notification for tenant
+      createNotification(
+        user.id,
+        'application',
+        status === 'approved' ? 'Application Approved!' : 'Application Update',
+        status === 'approved' 
+          ? `Your application for ${app.property.title} has been approved!`
+          : `Your application for ${app.property.title} has been rejected.`,
+        '/dashboard/applications'
+      );
+      
+      // If approved, create lease agreement
+      if (status === 'approved') {
+        const leaseUser = getUsers().find(u => u.id === user.id);
+        createLeaseAgreement(app, leaseUser);
+      }
+      
+      return true;
+    }
+  }
+  
+  return false;
+}
+
+// Create lease agreement
+function createLeaseAgreement(application: Application, tenant?: User): void {
+  const leases = getLeaseAgreements(application.property.landlord.id);
+  const startDate = new Date();
+  const endDate = new Date();
+  endDate.setMonth(endDate.getMonth() + application.property.minimumLease);
+  
+  const newLease: LeaseAgreement = {
+    id: `lease-${Date.now()}`,
+    applicationId: application.id,
+    propertyId: application.propertyId,
+    property: application.property,
+    tenantId: application.tenantId,
+    tenantName: tenant ? `${tenant.firstName} ${tenant.lastName}` : 'Unknown',
+    tenantEmail: tenant?.email || '',
+    tenantAvatar: tenant?.avatar,
+    landlordId: application.property.landlord.id,
+    startDate: startDate.toISOString(),
+    endDate: endDate.toISOString(),
+    monthlyRent: application.property.price,
+    securityDeposit: application.property.price * 2,
+    status: 'active',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+  
+  leases.push(newLease);
+  localStorage.setItem(`${LEASE_AGREEMENTS_KEY}_${application.property.landlord.id}`, JSON.stringify(leases));
+}
+
+// Get lease agreements for landlord
+export function getLeaseAgreements(landlordId: string): LeaseAgreement[] {
+  const stored = localStorage.getItem(`${LEASE_AGREEMENTS_KEY}_${landlordId}`);
+  return stored ? JSON.parse(stored) : [];
+}
+
+// Get landlord conversations
+export function getLandlordConversations(landlordId: string): Conversation[] {
+  const stored = localStorage.getItem(`${CONVERSATIONS_KEY}_landlord_${landlordId}`);
+  if (stored) return JSON.parse(stored);
+  
+  // Also check for conversations where landlord is the recipient
+  const allUsers = getUsers();
+  const conversations: Conversation[] = [];
+  
+  allUsers.forEach(user => {
+    const userConvs = getConversations(user.id);
+    userConvs.forEach(conv => {
+      if (conv.landlordId === landlordId) {
+        conversations.push(conv);
+      }
+    });
+  });
+  
+  return conversations;
+}
+
+// Add message to conversation
+export function addMessageToConversation(
+  conversationId: string,
+  senderId: string,
+  senderType: 'tenant' | 'landlord',
+  content: string
+): Conversation | null {
+  const allUsers = getUsers();
+  
+  for (const user of allUsers) {
+    const convs = getConversations(user.id);
+    const convIndex = convs.findIndex(c => c.id === conversationId);
+    
+    if (convIndex !== -1) {
+      const now = new Date().toISOString();
+      const newMessage: Message = {
+        id: `msg-${Date.now()}`,
+        conversationId,
+        senderId,
+        senderType,
+        content,
+        timestamp: now,
+        read: false,
+      };
+      
+      convs[convIndex] = {
+        ...convs[convIndex],
+        messages: [...convs[convIndex].messages, newMessage],
+        lastMessage: content,
+        lastMessageAt: now,
+      };
+      
+      localStorage.setItem(`${CONVERSATIONS_KEY}_${user.id}`, JSON.stringify(convs));
+      return convs[convIndex];
+    }
+  }
+  
+  return null;
+}
+
+// Property Managers
+export function getPropertyManagers(propertyId: string): PropertyManager[] {
+  const stored = localStorage.getItem(`${PROPERTY_MANAGERS_KEY}_${propertyId}`);
+  return stored ? JSON.parse(stored) : [];
+}
+
+export function addPropertyManager(propertyId: string, user: User): PropertyManager {
+  const managers = getPropertyManagers(propertyId);
+  const newManager: PropertyManager = {
+    id: `manager-${Date.now()}`,
+    propertyId,
+    userId: user.id,
+    userName: `${user.firstName} ${user.lastName}`,
+    userEmail: user.email,
+    userAvatar: user.avatar,
+    role: 'manager',
+    addedAt: new Date().toISOString(),
+  };
+  
+  managers.push(newManager);
+  localStorage.setItem(`${PROPERTY_MANAGERS_KEY}_${propertyId}`, JSON.stringify(managers));
+  return newManager;
+}
+
+export function removePropertyManager(propertyId: string, managerId: string): boolean {
+  const managers = getPropertyManagers(propertyId);
+  const updated = managers.filter(m => m.id !== managerId);
+  localStorage.setItem(`${PROPERTY_MANAGERS_KEY}_${propertyId}`, JSON.stringify(updated));
+  return true;
+}
