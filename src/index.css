@@ -2,95 +2,131 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+/* RentMate Design System - All colors MUST be HSL */
 
 @layer base {
   :root {
+    /* Background & Foreground */
     --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --foreground: 222 47% 11%;
 
+    /* Cards & Popovers */
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-
+    --card-foreground: 222 47% 11%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 222 47% 11%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    /* Primary - Blue (#2563EB) */
+    --primary: 217 91% 53%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    /* Secondary - Soft Gray */
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222 47% 11%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    /* Muted */
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    /* Accent - Green (#10B981) */
+    --accent: 160 84% 39%;
+    --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    /* Warning - Orange (#F59E0B) */
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    /* Destructive */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
 
-    --radius: 0.5rem;
+    /* Borders & Inputs */
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 217 91% 53%;
 
+    /* Border Radius */
+    --radius: 0.75rem;
+
+    /* Sidebar */
     --sidebar-background: 0 0% 98%;
-
-    --sidebar-foreground: 240 5.3% 26.1%;
-
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
+    --sidebar-foreground: 240 5% 26%;
+    --sidebar-primary: 217 91% 53%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 5% 96%;
+    --sidebar-accent-foreground: 240 6% 10%;
     --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217 91% 60%;
 
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    /* Custom RentMate Colors */
+    --success: 160 84% 39%;
+    --success-foreground: 0 0% 100%;
+    --info: 199 89% 48%;
+    --info-foreground: 0 0% 100%;
+
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(217, 91%, 53%) 0%, hsl(199, 89%, 48%) 100%);
+    --gradient-accent: linear-gradient(135deg, hsl(160, 84%, 39%) 0%, hsl(160, 84%, 50%) 100%);
+    --gradient-hero: linear-gradient(180deg, hsl(217, 91%, 53%, 0.1) 0%, hsl(0, 0%, 100%) 100%);
+
+    /* Shadows */
+    --shadow-sm: 0 1px 2px 0 hsl(0 0% 0% / 0.05);
+    --shadow-md: 0 4px 6px -1px hsl(0 0% 0% / 0.1), 0 2px 4px -2px hsl(0 0% 0% / 0.1);
+    --shadow-lg: 0 10px 15px -3px hsl(0 0% 0% / 0.1), 0 4px 6px -4px hsl(0 0% 0% / 0.1);
+    --shadow-xl: 0 20px 25px -5px hsl(0 0% 0% / 0.1), 0 8px 10px -6px hsl(0 0% 0% / 0.1);
+    --shadow-glow: 0 0 40px hsl(217 91% 53% / 0.2);
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
+    --background: 222 47% 6%;
     --foreground: 210 40% 98%;
 
-    --card: 222.2 84% 4.9%;
+    --card: 222 47% 8%;
     --card-foreground: 210 40% 98%;
-
-    --popover: 222.2 84% 4.9%;
+    --popover: 222 47% 8%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary: 217 91% 60%;
+    --primary-foreground: 222 47% 6%;
 
-    --secondary: 217.2 32.6% 17.5%;
+    --secondary: 217 33% 17%;
     --secondary-foreground: 210 40% 98%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 217 33% 17%;
+    --muted-foreground: 215 20% 65%;
 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 160 84% 45%;
+    --accent-foreground: 222 47% 6%;
 
-    --destructive: 0 62.8% 30.6%;
+    --warning: 38 92% 55%;
+    --warning-foreground: 222 47% 6%;
+
+    --destructive: 0 63% 31%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
+    --border: 217 33% 17%;
+    --input: 217 33% 17%;
+    --ring: 217 91% 60%;
+
+    --sidebar-background: 240 6% 10%;
+    --sidebar-foreground: 240 5% 96%;
+    --sidebar-primary: 217 91% 53%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-accent: 240 4% 16%;
+    --sidebar-accent-foreground: 240 5% 96%;
+    --sidebar-border: 240 4% 16%;
+    --sidebar-ring: 217 91% 60%;
+
+    --success: 160 84% 45%;
+    --success-foreground: 222 47% 6%;
+    --info: 199 89% 55%;
+    --info-foreground: 222 47% 6%;
+
+    --gradient-primary: linear-gradient(135deg, hsl(217, 91%, 60%) 0%, hsl(199, 89%, 55%) 100%);
+    --gradient-accent: linear-gradient(135deg, hsl(160, 84%, 45%) 0%, hsl(160, 84%, 55%) 100%);
+    --gradient-hero: linear-gradient(180deg, hsl(217, 91%, 53%, 0.2) 0%, hsl(222, 47%, 6%) 100%);
+
+    --shadow-glow: 0 0 40px hsl(217 91% 60% / 0.3);
   }
 }
 
@@ -100,6 +136,110 @@ All colors MUST be HSL.
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold tracking-tight;
+  }
+}
+
+@layer components {
+  /* Card hover effects */
+  .card-hover {
+    @apply transition-all duration-300 hover:shadow-lg hover:-translate-y-1;
+  }
+
+  /* Property card specific */
+  .property-card {
+    @apply rounded-xl bg-card border border-border overflow-hidden card-hover;
+  }
+
+  /* Badge variants */
+  .badge-featured {
+    @apply bg-warning text-warning-foreground px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  .badge-new {
+    @apply bg-accent text-accent-foreground px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  .badge-verified {
+    @apply bg-primary text-primary-foreground px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  /* Button glow effect */
+  .btn-glow {
+    @apply relative overflow-hidden;
+  }
+
+  .btn-glow::before {
+    content: '';
+    @apply absolute inset-0 opacity-0 transition-opacity duration-300;
+    background: var(--gradient-primary);
+  }
+
+  .btn-glow:hover::before {
+    @apply opacity-10;
+  }
+
+  /* Section spacing */
+  .section-padding {
+    @apply py-16 md:py-24 lg:py-32;
+  }
+
+  /* Container with max-width */
+  .container-custom {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+
+  /* Gradient text */
+  .gradient-text {
+    @apply bg-clip-text text-transparent;
+    background-image: var(--gradient-primary);
+  }
+
+  /* Glass effect */
+  .glass {
+    @apply backdrop-blur-md bg-background/80 border border-border/50;
+  }
+
+  /* Underline animation for links */
+  .link-underline {
+    @apply relative inline-block;
+  }
+
+  .link-underline::after {
+    content: '';
+    @apply absolute w-full scale-x-0 h-0.5 bottom-0 left-0 bg-primary origin-bottom-right transition-transform duration-300;
+  }
+
+  .link-underline:hover::after {
+    @apply scale-x-100 origin-bottom-left;
+  }
+
+  /* Smooth scroll */
+  html {
+    scroll-behavior: smooth;
+  }
+
+  /* Focus visible styles */
+  .focus-ring {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2;
+  }
+}
+
+@layer utilities {
+  /* Animation delays */
+  .animation-delay-100 { animation-delay: 100ms; }
+  .animation-delay-200 { animation-delay: 200ms; }
+  .animation-delay-300 { animation-delay: 300ms; }
+  .animation-delay-400 { animation-delay: 400ms; }
+  .animation-delay-500 { animation-delay: 500ms; }
+
+  /* Text balance for headings */
+  .text-balance {
+    text-wrap: balance;
   }
 }
