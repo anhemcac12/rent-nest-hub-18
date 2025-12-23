@@ -1,8 +1,18 @@
 import { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, Home, Search, Info, Phone, HelpCircle, LogIn, UserPlus } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Menu, X, Home, Search, Info, Phone, HelpCircle, LogIn, UserPlus, LayoutDashboard, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/contexts/AuthContext';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 const navLinks = [
   { to: '/', label: 'Home', icon: Home },
@@ -15,8 +25,20 @@ const navLinks = [
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, isAuthenticated, logout } = useAuth();
 
   const isActive = (path: string) => location.pathname === path;
+
+  const handleLogout = () => {
+    logout();
+    navigate('/');
+  };
+
+  const getInitials = () => {
+    if (!user) return 'U';
+    return `${user.firstName[0]}${user.lastName[0]}`.toUpperCase();
+  };
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -48,20 +70,56 @@ export function Header() {
             ))}
           </nav>
 
-          {/* Auth Buttons */}
+          {/* Auth Buttons / User Menu */}
           <div className="hidden md:flex items-center gap-3">
-            <Button variant="ghost" asChild>
-              <Link to="/auth?mode=login">
-                <LogIn className="mr-2 h-4 w-4" />
-                Log In
-              </Link>
-            </Button>
-            <Button asChild>
-              <Link to="/auth?mode=signup">
-                <UserPlus className="mr-2 h-4 w-4" />
-                Sign Up
-              </Link>
-            </Button>
+            {isAuthenticated && user ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+                    <Avatar className="h-10 w-10">
+                      <AvatarImage src={user.avatar} alt={user.firstName} />
+                      <AvatarFallback>{getInitials()}</AvatarFallback>
+                    </Avatar>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56" align="end" forceMount>
+                  <DropdownMenuLabel className="font-normal">
+                    <div className="flex flex-col space-y-1">
+                      <p className="text-sm font-medium">{user.firstName} {user.lastName}</p>
+                      <p className="text-xs text-muted-foreground">{user.email}</p>
+                      <p className="text-xs text-muted-foreground capitalize">Role: {user.role}</p>
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link to="/dashboard" className="cursor-pointer">
+                      <LayoutDashboard className="mr-2 h-4 w-4" />
+                      Dashboard
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-destructive">
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Log out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <>
+                <Button variant="ghost" asChild>
+                  <Link to="/auth?mode=login">
+                    <LogIn className="mr-2 h-4 w-4" />
+                    Log In
+                  </Link>
+                </Button>
+                <Button asChild>
+                  <Link to="/auth?mode=signup">
+                    <UserPlus className="mr-2 h-4 w-4" />
+                    Sign Up
+                  </Link>
+                </Button>
+              </>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -94,18 +152,39 @@ export function Header() {
                 </Link>
               ))}
               <div className="flex flex-col gap-2 pt-4 mt-2 border-t border-border">
-                <Button variant="outline" asChild className="justify-start">
-                  <Link to="/auth?mode=login" onClick={() => setMobileMenuOpen(false)}>
-                    <LogIn className="mr-2 h-4 w-4" />
-                    Log In
-                  </Link>
-                </Button>
-                <Button asChild className="justify-start">
-                  <Link to="/auth?mode=signup" onClick={() => setMobileMenuOpen(false)}>
-                    <UserPlus className="mr-2 h-4 w-4" />
-                    Sign Up
-                  </Link>
-                </Button>
+                {isAuthenticated && user ? (
+                  <>
+                    <div className="px-4 py-2 text-sm">
+                      <p className="font-medium">{user.firstName} {user.lastName}</p>
+                      <p className="text-xs text-muted-foreground">{user.email}</p>
+                    </div>
+                    <Button variant="outline" asChild className="justify-start">
+                      <Link to="/dashboard" onClick={() => setMobileMenuOpen(false)}>
+                        <LayoutDashboard className="mr-2 h-4 w-4" />
+                        Dashboard
+                      </Link>
+                    </Button>
+                    <Button variant="destructive" onClick={() => { handleLogout(); setMobileMenuOpen(false); }} className="justify-start">
+                      <LogOut className="mr-2 h-4 w-4" />
+                      Log out
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button variant="outline" asChild className="justify-start">
+                      <Link to="/auth?mode=login" onClick={() => setMobileMenuOpen(false)}>
+                        <LogIn className="mr-2 h-4 w-4" />
+                        Log In
+                      </Link>
+                    </Button>
+                    <Button asChild className="justify-start">
+                      <Link to="/auth?mode=signup" onClick={() => setMobileMenuOpen(false)}>
+                        <UserPlus className="mr-2 h-4 w-4" />
+                        Sign Up
+                      </Link>
+                    </Button>
+                  </>
+                )}
               </div>
             </nav>
           </div>

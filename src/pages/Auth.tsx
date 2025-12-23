@@ -1,34 +1,105 @@
-import { useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
-import { Home, Mail, Lock, User, Eye, EyeOff, Building, Users } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Link, useSearchParams, useNavigate } from 'react-router-dom';
+import { Home, Mail, Lock, User, Eye, EyeOff, Building, Users, KeyRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
 
 export default function Auth() {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const { login, signup, isAuthenticated, isLoading } = useAuth();
+  
   const initialMode = searchParams.get('mode') === 'signup' ? 'signup' : 'login';
   const initialRole = searchParams.get('role') as 'tenant' | 'landlord' | null;
 
   const [mode, setMode] = useState<'login' | 'signup'>(initialMode);
   const [role, setRole] = useState<'tenant' | 'landlord'>(initialRole || 'tenant');
   const [showPassword, setShowPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
-    name: '',
+    firstName: '',
+    lastName: '',
     email: '',
     password: '',
     confirmPassword: '',
     agreeToTerms: false,
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+      navigate('/dashboard');
+    }
+  }, [isAuthenticated, isLoading, navigate]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // This is UI only - will integrate with Spring Boot later
-    console.log('Form submitted:', { mode, role, ...formData });
+    setError(null);
+    setIsSubmitting(true);
+
+    try {
+      if (mode === 'signup') {
+        if (formData.password !== formData.confirmPassword) {
+          setError('Passwords do not match');
+          setIsSubmitting(false);
+          return;
+        }
+        if (formData.password.length < 6) {
+          setError('Password must be at least 6 characters');
+          setIsSubmitting(false);
+          return;
+        }
+        if (!formData.agreeToTerms) {
+          setError('Please agree to the Terms of Service');
+          setIsSubmitting(false);
+          return;
+        }
+        
+        const result = await signup(
+          formData.email,
+          formData.password,
+          formData.firstName,
+          formData.lastName,
+          role
+        );
+        
+        if (result.success) {
+          toast.success('Account created successfully!');
+          navigate('/dashboard');
+        } else {
+          setError(result.error || 'Failed to create account');
+        }
+      } else {
+        const result = await login(formData.email, formData.password);
+        
+        if (result.success) {
+          toast.success('Welcome back!');
+          navigate('/dashboard');
+        } else {
+          setError(result.error || 'Invalid credentials');
+        }
+      }
+    } catch (err) {
+      setError('An unexpected error occurred');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex">
@@ -43,6 +114,21 @@ export default function Auth() {
             <span className="text-2xl font-bold text-foreground">RentMate</span>
           </Link>
 
+          {/* Test Accounts Card */}
+          <Card className="mb-6 border-dashed border-2 border-primary/30 bg-primary/5">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <KeyRound className="h-4 w-4" />
+                Test Accounts
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="text-xs space-y-1">
+              <div><strong>Tenant:</strong> tenant@test.com / password123</div>
+              <div><strong>Landlord:</strong> landlord@test.com / password123</div>
+              <div><strong>Admin:</strong> admin@test.com / password123</div>
+            </CardContent>
+          </Card>
+
           <Card className="border-0 shadow-xl">
             <CardHeader className="space-y-1 pb-4">
               <CardTitle className="text-2xl">
@@ -56,6 +142,13 @@ export default function Auth() {
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-4">
+                {/* Error Message */}
+                {error && (
+                  <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
+                    {error}
+                  </div>
+                )}
+
                 {/* Role Selector (Signup only) */}
                 {mode === 'signup' && (
                   <div className="space-y-2">
@@ -107,18 +200,30 @@ export default function Auth() {
                   </div>
                 )}
 
-                {/* Name Field (Signup only) */}
+                {/* Name Fields (Signup only) */}
                 {mode === 'signup' && (
-                  <div className="space-y-2">
-                    <Label htmlFor="name">Full Name</Label>
-                    <div className="relative">
-                      <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="firstName">First Name</Label>
+                      <div className="relative">
+                        <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                        <Input
+                          id="firstName"
+                          placeholder="John"
+                          value={formData.firstName}
+                          onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                          className="pl-10"
+                          required
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="lastName">Last Name</Label>
                       <Input
-                        id="name"
-                        placeholder="John Doe"
-                        value={formData.name}
-                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                        className="pl-10"
+                        id="lastName"
+                        placeholder="Doe"
+                        value={formData.lastName}
+                        onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
                         required
                       />
                     </div>
@@ -209,8 +314,8 @@ export default function Auth() {
                 )}
 
                 {/* Submit Button */}
-                <Button type="submit" className="w-full" size="lg">
-                  {mode === 'login' ? 'Sign In' : 'Create Account'}
+                <Button type="submit" className="w-full" size="lg" disabled={isSubmitting}>
+                  {isSubmitting ? 'Please wait...' : mode === 'login' ? 'Sign In' : 'Create Account'}
                 </Button>
 
                 {/* Divider */}
@@ -249,7 +354,7 @@ export default function Auth() {
                       Don't have an account?{' '}
                       <button
                         type="button"
-                        onClick={() => setMode('signup')}
+                        onClick={() => { setMode('signup'); setError(null); }}
                         className="text-primary font-medium hover:underline"
                       >
                         Sign up
@@ -260,7 +365,7 @@ export default function Auth() {
                       Already have an account?{' '}
                       <button
                         type="button"
-                        onClick={() => setMode('login')}
+                        onClick={() => { setMode('login'); setError(null); }}
                         className="text-primary font-medium hover:underline"
                       >
                         Sign in
