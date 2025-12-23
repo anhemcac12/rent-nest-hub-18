@@ -97,10 +97,37 @@ export default function Properties() {
       {/* Price Range */}
       <div>
         <Label className="text-sm font-medium mb-3 block">Price Range</Label>
+        <div className="flex items-center gap-2 mb-3">
+          <div className="flex-1">
+            <Label className="text-xs text-muted-foreground mb-1 block">Min</Label>
+            <Input
+              type="number"
+              value={priceRange[0]}
+              onChange={(e) => setPriceRange([Math.min(Number(e.target.value), priceRange[1]), priceRange[1]])}
+              min={0}
+              max={priceRange[1]}
+              step={100}
+              className="h-9 text-sm"
+            />
+          </div>
+          <span className="text-muted-foreground mt-5">—</span>
+          <div className="flex-1">
+            <Label className="text-xs text-muted-foreground mb-1 block">Max</Label>
+            <Input
+              type="number"
+              value={priceRange[1]}
+              onChange={(e) => setPriceRange([priceRange[0], Math.max(Number(e.target.value), priceRange[0])])}
+              min={priceRange[0]}
+              max={6000}
+              step={100}
+              className="h-9 text-sm"
+            />
+          </div>
+        </div>
         <Slider value={priceRange} onValueChange={setPriceRange} min={0} max={6000} step={100} className="mb-2" />
-        <div className="flex justify-between text-sm text-muted-foreground">
-          <span>${priceRange[0].toLocaleString()}</span>
-          <span>${priceRange[1].toLocaleString()}+</span>
+        <div className="flex justify-between text-xs text-muted-foreground">
+          <span>$0</span>
+          <span>$6,000+</span>
         </div>
       </div>
 
@@ -123,16 +150,16 @@ export default function Properties() {
         </div>
       </div>
 
-      {/* Bedrooms */}
+      {/* Room Number */}
       <div>
-        <Label className="text-sm font-medium mb-3 block">Bedrooms</Label>
-        <div className="flex gap-2">
+        <Label className="text-sm font-medium mb-3 block">Room Number</Label>
+        <div className="grid grid-cols-3 gap-2">
           {['any', '0', '1', '2', '3', '4'].map((num) => (
             <button
               key={num}
               onClick={() => setSelectedBedrooms(num)}
               className={cn(
-                'flex-1 px-3 py-2 text-sm rounded-lg border transition-colors',
+                'px-2 py-2 text-sm rounded-lg border transition-colors text-center truncate',
                 selectedBedrooms === num ? 'bg-primary text-primary-foreground border-primary' : 'border-border hover:border-primary'
               )}
             >
