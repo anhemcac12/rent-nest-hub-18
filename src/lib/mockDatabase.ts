@@ -51,6 +51,139 @@ function initializeDatabase(): void {
   if (!existingUsers) {
     localStorage.setItem(USERS_KEY, JSON.stringify(seedUsers));
   }
+  // Initialize sample lease agreements for demo landlord
+  initializeSampleLeases();
+}
+
+// Initialize sample lease agreements for testing
+function initializeSampleLeases(): void {
+  const SAMPLE_LEASES_INITIALIZED_KEY = 'rentmate_sample_leases_initialized';
+  const alreadyInitialized = localStorage.getItem(SAMPLE_LEASES_INITIALIZED_KEY);
+  
+  if (alreadyInitialized) return;
+  
+  const landlordId = 'landlord-001';
+  const tenantId = 'tenant-001';
+  const tenant = seedUsers.find(u => u.id === tenantId);
+  
+  // Get mock properties for demo
+  const sampleProperties = mockProperties.slice(0, 3);
+  
+  const now = new Date();
+  const oneMonthAgo = new Date(now);
+  oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+  
+  const oneYearFromNow = new Date(now);
+  oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1);
+  
+  const sixMonthsFromNow = new Date(now);
+  sixMonthsFromNow.setMonth(sixMonthsFromNow.getMonth() + 6);
+  
+  const sampleLeases: LeaseAgreement[] = [
+    // Active lease
+    {
+      id: 'lease-sample-001',
+      applicationId: 'app-sample-001',
+      propertyId: sampleProperties[0]?.id || '1',
+      property: sampleProperties[0] || mockProperties[0],
+      tenantId: tenantId,
+      tenantName: tenant ? `${tenant.firstName} ${tenant.lastName}` : 'John Tenant',
+      tenantEmail: tenant?.email || 'tenant@test.com',
+      tenantAvatar: tenant?.avatar,
+      landlordId: landlordId,
+      startDate: oneMonthAgo.toISOString(),
+      endDate: oneYearFromNow.toISOString(),
+      monthlyRent: 2500,
+      securityDeposit: 5000,
+      documents: [
+        {
+          id: 'doc-001',
+          name: 'Lease Agreement.pdf',
+          type: 'pdf',
+          url: '#',
+          uploadedAt: oneMonthAgo.toISOString(),
+        },
+        {
+          id: 'doc-002',
+          name: 'Move-in Checklist.pdf',
+          type: 'pdf',
+          url: '#',
+          uploadedAt: oneMonthAgo.toISOString(),
+        }
+      ],
+      status: 'active',
+      paymentStatus: 'paid',
+      paymentAmount: 7500,
+      paidAt: oneMonthAgo.toISOString(),
+      sentToTenantAt: oneMonthAgo.toISOString(),
+      tenantRespondedAt: oneMonthAgo.toISOString(),
+      createdAt: oneMonthAgo.toISOString(),
+      updatedAt: oneMonthAgo.toISOString(),
+    },
+    // Pending tenant lease
+    {
+      id: 'lease-sample-002',
+      applicationId: 'app-sample-002',
+      propertyId: sampleProperties[1]?.id || '2',
+      property: sampleProperties[1] || mockProperties[1],
+      tenantId: tenantId,
+      tenantName: tenant ? `${tenant.firstName} ${tenant.lastName}` : 'John Tenant',
+      tenantEmail: tenant?.email || 'tenant@test.com',
+      tenantAvatar: tenant?.avatar,
+      landlordId: landlordId,
+      startDate: new Date().toISOString(),
+      endDate: sixMonthsFromNow.toISOString(),
+      monthlyRent: 1800,
+      securityDeposit: 3600,
+      documents: [
+        {
+          id: 'doc-003',
+          name: 'Lease Agreement.pdf',
+          type: 'pdf',
+          url: '#',
+          uploadedAt: new Date().toISOString(),
+        }
+      ],
+      status: 'pending_tenant',
+      sentToTenantAt: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    },
+    // Rejected lease
+    {
+      id: 'lease-sample-003',
+      applicationId: 'app-sample-003',
+      propertyId: sampleProperties[2]?.id || '3',
+      property: sampleProperties[2] || mockProperties[2],
+      tenantId: tenantId,
+      tenantName: tenant ? `${tenant.firstName} ${tenant.lastName}` : 'John Tenant',
+      tenantEmail: tenant?.email || 'tenant@test.com',
+      tenantAvatar: tenant?.avatar,
+      landlordId: landlordId,
+      startDate: new Date().toISOString(),
+      endDate: oneYearFromNow.toISOString(),
+      monthlyRent: 3200,
+      securityDeposit: 6400,
+      documents: [
+        {
+          id: 'doc-004',
+          name: 'Lease Agreement.pdf',
+          type: 'pdf',
+          url: '#',
+          uploadedAt: oneMonthAgo.toISOString(),
+        }
+      ],
+      status: 'rejected',
+      rejectionReason: 'Found a better option closer to work. Thank you for your time.',
+      sentToTenantAt: oneMonthAgo.toISOString(),
+      tenantRespondedAt: new Date(oneMonthAgo.getTime() + 86400000).toISOString(),
+      createdAt: oneMonthAgo.toISOString(),
+      updatedAt: new Date(oneMonthAgo.getTime() + 86400000).toISOString(),
+    },
+  ];
+  
+  localStorage.setItem(`${LEASE_AGREEMENTS_KEY}_${landlordId}`, JSON.stringify(sampleLeases));
+  localStorage.setItem(SAMPLE_LEASES_INITIALIZED_KEY, 'true');
 }
 
 // Get all users
