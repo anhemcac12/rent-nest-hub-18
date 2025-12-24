@@ -34,6 +34,13 @@ import LandlordProperties from "./pages/dashboard/landlord/LandlordProperties";
 import LeaseAgreements from "./pages/dashboard/landlord/LeaseAgreements";
 import LandlordMaintenance from "./pages/dashboard/landlord/LandlordMaintenance";
 
+// Property Manager Dashboard imports
+import PropertyManagerProperties from "./pages/dashboard/property-manager/PropertyManagerProperties";
+import PropertyManagerApplications from "./pages/dashboard/property-manager/PropertyManagerApplications";
+import PropertyManagerLeases from "./pages/dashboard/property-manager/PropertyManagerLeases";
+import PropertyManagerMaintenance from "./pages/dashboard/property-manager/PropertyManagerMaintenance";
+import PropertyManagerMessages from "./pages/dashboard/property-manager/PropertyManagerMessages";
+
 const queryClient = new QueryClient();
 
 // Main App component
@@ -75,6 +82,13 @@ const App = () => (
               <Route path="properties" element={<LandlordProperties />} />
               <Route path="landlord-leases" element={<LeaseAgreements />} />
               <Route path="landlord-maintenance" element={<LandlordMaintenance />} />
+              
+              {/* Property Manager routes */}
+              <Route path="pm-properties" element={<PropertyManagerProperties />} />
+              <Route path="pm-applications" element={<PropertyManagerApplications />} />
+              <Route path="pm-leases" element={<PropertyManagerLeases />} />
+              <Route path="pm-maintenance" element={<PropertyManagerMaintenance />} />
+              <Route path="pm-messages" element={<PropertyManagerMessages />} />
             </Route>
             
             <Route path="*" element={<NotFound />} />

@@ -1,5 +1,5 @@
 import { User, CurrentUser, UserRole } from '@/types/user';
-import { Application, ApplicationEvent, Conversation, Message, Notification } from '@/types/tenant';
+import { Application, ApplicationEvent, Conversation, Message, Notification, MaintenanceRequest } from '@/types/tenant';
 import { Property } from '@/types/property';
 import { getPropertyById, mockProperties } from '@/data/mockProperties';
 import { PropertyManager, LeaseAgreement } from '@/types/landlord';
@@ -41,6 +41,16 @@ const seedUsers: User[] = [
     firstName: 'Admin',
     lastName: 'User',
     avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=admin',
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'pm-001',
+    email: 'manager@test.com',
+    password: 'password123',
+    role: 'property_manager',
+    firstName: 'Mike',
+    lastName: 'Manager',
+    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=manager',
     createdAt: new Date().toISOString(),
   },
 ];
@@ -1045,4 +1055,110 @@ export function removePropertyManager(propertyId: string, managerId: string): bo
   const updated = managers.filter(m => m.id !== managerId);
   localStorage.setItem(`${PROPERTY_MANAGERS_KEY}_${propertyId}`, JSON.stringify(updated));
   return true;
+}
+
+// =====================
+// PROPERTY MANAGER FUNCTIONS
+// =====================
+
+// Get all properties a user manages
+export function getPropertiesForManager(userId: string): Property[] {
+  const allProperties = mockProperties;
+  const managedProperties: Property[] = [];
+  
+  allProperties.forEach(property => {
+    const managers = getPropertyManagers(property.id);
+    if (managers.some(m => m.userId === userId)) {
+      managedProperties.push(property);
+    }
+  });
+  
+  // Also check landlord-added properties
+  const allUsers = getUsers().filter(u => u.role === 'landlord');
+  allUsers.forEach(landlord => {
+    const storedProps = localStorage.getItem(`${LANDLORD_PROPERTIES_KEY}_${landlord.id}`);
+    if (storedProps) {
+      const props: Property[] = JSON.parse(storedProps);
+      props.forEach(property => {
+        const managers = getPropertyManagers(property.id);
+        if (managers.some(m => m.userId === userId)) {
+          managedProperties.push(property);
+        }
+      });
+    }
+  });
+  
+  return managedProperties;
+}
+
+// Get applications for managed properties
+export function getApplicationsForManager(userId: string): Application[] {
+  const managedProperties = getPropertiesForManager(userId);
+  const propertyIds = managedProperties.map(p => p.id);
+  
+  const allUsers = getUsers();
+  const allApplications: Application[] = [];
+  
+  allUsers.forEach(user => {
+    const userApps = getApplications(user.id);
+    userApps.forEach(app => {
+      if (propertyIds.includes(app.propertyId)) {
+        allApplications.push(app);
+      }
+    });
+  });
+  
+  return allApplications;
+}
+
+// Get leases for managed properties
+export function getLeasesForManager(userId: string): LeaseAgreement[] {
+  const managedProperties = getPropertiesForManager(userId);
+  const propertyIds = managedProperties.map(p => p.id);
+  
+  const allLandlords = getUsers().filter(u => u.role === 'landlord');
+  const managerLeases: LeaseAgreement[] = [];
+  
+  allLandlords.forEach(landlord => {
+    const leases = getLeaseAgreements(landlord.id);
+    leases.forEach(lease => {
+      if (propertyIds.includes(lease.propertyId)) {
+        managerLeases.push(lease);
+      }
+    });
+  });
+  
+  return managerLeases;
+}
+
+// Get maintenance requests for managed properties
+import { mockMaintenanceRequests } from '@/data/mockTenant';
+export function getMaintenanceForManager(userId: string): MaintenanceRequest[] {
+  const managedProperties = getPropertiesForManager(userId);
+  const propertyIds = managedProperties.map(p => p.id);
+  
+  // Filter mock maintenance requests by managed property IDs
+  return mockMaintenanceRequests.filter(req => 
+    req.propertyId && propertyIds.includes(req.propertyId)
+  );
+}
+
+// Get conversations for managed properties
+export function getConversationsForManager(userId: string): Conversation[] {
+  const managedProperties = getPropertiesForManager(userId);
+  const propertyIds = managedProperties.map(p => p.id);
+  
+  const allUsers = getUsers();
+  const conversations: Conversation[] = [];
+  
+  allUsers.forEach(user => {
+    const userConvs = getConversations(user.id);
+    userConvs.forEach(conv => {
+      if (propertyIds.includes(conv.propertyId)) {
+        conversations.push(conv);
+      }
+    });
+  });
+  
+  return conversations;
 }
