@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ScrollText, Calendar, DollarSign, User, Building2, FileText } from 'lucide-react';
+import { ScrollText, Calendar, DollarSign, User, Building2, FileText, Eye } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -10,6 +10,7 @@ import { getLeaseAgreements, getUsers } from '@/lib/mockDatabase';
 import { LeaseAgreement } from '@/types/landlord';
 import { User as UserType } from '@/types/user';
 import { useNavigate } from 'react-router-dom';
+import { LeaseDetailsModal } from '@/components/landlord/LeaseDetailsModal';
 
 export default function LeaseAgreementsPage() {
   const { user } = useAuth();
@@ -17,6 +18,8 @@ export default function LeaseAgreementsPage() {
   const [leases, setLeases] = useState<LeaseAgreement[]>([]);
   const [users, setUsers] = useState<UserType[]>([]);
   const [selectedTab, setSelectedTab] = useState('pending_tenant');
+  const [selectedLease, setSelectedLease] = useState<LeaseAgreement | null>(null);
+  const [detailsModalOpen, setDetailsModalOpen] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -24,6 +27,11 @@ export default function LeaseAgreementsPage() {
       setUsers(getUsers());
     }
   }, [user]);
+
+  const handleViewDetails = (lease: LeaseAgreement) => {
+    setSelectedLease(lease);
+    setDetailsModalOpen(true);
+  };
 
   const getTenantInfo = (tenantId: string) => {
     return users.find(u => u.id === tenantId);
@@ -232,11 +240,11 @@ export default function LeaseAgreementsPage() {
                       </div>
 
                       <div className="flex items-center gap-3 mt-4">
-                        <Button variant="outline" className="flex-1" onClick={() => navigate(`/properties/${lease.propertyId}`)}>
-                          <Building2 className="h-4 w-4 mr-2" />
-                          View Property
+                        <Button variant="outline" className="flex-1" onClick={() => handleViewDetails(lease)}>
+                          <Eye className="h-4 w-4 mr-2" />
+                          View Details
                         </Button>
-                        <Button variant="outline" className="flex-1">
+                        <Button variant="outline" className="flex-1" onClick={() => navigate(`/properties/${lease.propertyId}`)}>
                           <FileText className="h-4 w-4 mr-2" />
                           View Agreement
                         </Button>
@@ -249,6 +257,12 @@ export default function LeaseAgreementsPage() {
           )}
         </TabsContent>
       </Tabs>
+
+      <LeaseDetailsModal
+        lease={selectedLease}
+        open={detailsModalOpen}
+        onOpenChange={setDetailsModalOpen}
+      />
     </div>
   );
 }
