@@ -16,7 +16,7 @@ export default function LeaseAgreementsPage() {
   const navigate = useNavigate();
   const [leases, setLeases] = useState<LeaseAgreement[]>([]);
   const [users, setUsers] = useState<UserType[]>([]);
-  const [selectedTab, setSelectedTab] = useState('active');
+  const [selectedTab, setSelectedTab] = useState('pending_tenant');
 
   useEffect(() => {
     if (user) {
@@ -32,11 +32,21 @@ export default function LeaseAgreementsPage() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'active':
-        return <Badge className="bg-green-500">Active</Badge>;
+        return <Badge className="bg-green-500 hover:bg-green-600">Active</Badge>;
+      case 'pending_tenant':
+        return <Badge className="bg-yellow-500 hover:bg-yellow-600">Pending Tenant</Badge>;
+      case 'tenant_accepted':
+        return <Badge className="bg-blue-500 hover:bg-blue-600">Tenant Accepted</Badge>;
+      case 'payment_pending':
+        return <Badge className="bg-orange-500 hover:bg-orange-600">Payment Pending</Badge>;
+      case 'rejected':
+        return <Badge variant="destructive">Rejected</Badge>;
       case 'expired':
         return <Badge variant="secondary">Expired</Badge>;
       case 'terminated':
         return <Badge variant="destructive">Terminated</Badge>;
+      case 'draft':
+        return <Badge variant="outline">Draft</Badge>;
       default:
         return <Badge variant="secondary">{status}</Badge>;
     }
@@ -44,8 +54,13 @@ export default function LeaseAgreementsPage() {
 
   const filteredLeases = leases.filter(lease => {
     if (selectedTab === 'all') return true;
+    if (selectedTab === 'pending') {
+      return ['pending_tenant', 'tenant_accepted', 'payment_pending'].includes(lease.status);
+    }
     return lease.status === selectedTab;
   });
+
+  const pendingCount = leases.filter(l => ['pending_tenant', 'tenant_accepted', 'payment_pending'].includes(l.status)).length;
 
   const calculateMonthsRemaining = (endDate: string) => {
     const end = new Date(endDate);
@@ -102,11 +117,14 @@ export default function LeaseAgreementsPage() {
 
       <Tabs value={selectedTab} onValueChange={setSelectedTab}>
         <TabsList>
+          <TabsTrigger value="pending_tenant">
+            Pending ({pendingCount})
+          </TabsTrigger>
           <TabsTrigger value="active">
             Active ({leases.filter(l => l.status === 'active').length})
           </TabsTrigger>
-          <TabsTrigger value="expired">
-            Expired ({leases.filter(l => l.status === 'expired').length})
+          <TabsTrigger value="rejected">
+            Rejected ({leases.filter(l => l.status === 'rejected').length})
           </TabsTrigger>
           <TabsTrigger value="all">
             All ({leases.length})
@@ -122,8 +140,12 @@ export default function LeaseAgreementsPage() {
                 </div>
                 <h3 className="text-lg font-semibold mb-2">No lease agreements</h3>
                 <p className="text-muted-foreground text-center">
-                  {selectedTab === 'active' 
-                    ? 'Lease agreements will appear here when you approve applications'
+                  {selectedTab === 'pending_tenant' 
+                    ? 'Pending lease agreements will appear here after you create them from approved applications'
+                    : selectedTab === 'active' 
+                    ? 'Active leases will appear here once tenants accept and pay'
+                    : selectedTab === 'rejected'
+                    ? 'No rejected lease agreements'
                     : 'No lease agreements found'}
                 </p>
               </CardContent>
@@ -157,8 +179,18 @@ export default function LeaseAgreementsPage() {
                                 <Calendar className="h-4 w-4 text-muted-foreground" />
                                 <span>{new Date(lease.startDate).toLocaleDateString()} - {new Date(lease.endDate).toLocaleDateString()}</span>
                               </div>
-                              {lease.status === 'active' && (
+                              {lease.status === 'active' && monthsRemaining > 0 && (
                                 <Badge variant="outline">{monthsRemaining} months remaining</Badge>
+                              )}
+                              {lease.status === 'pending_tenant' && (
+                                <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-300">
+                                  Waiting for tenant response
+                                </Badge>
+                              )}
+                              {lease.status === 'rejected' && (
+                                <Badge variant="outline" className="bg-red-100 text-red-800 border-red-300">
+                                  Tenant declined
+                                </Badge>
                               )}
                             </div>
                           </div>
