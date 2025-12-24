@@ -1,6 +1,6 @@
 import { useAuth } from '@/contexts/AuthContext';
 import LandlordApplications from './landlord/LandlordApplications';
-import TenantApplications from './TenantApplications';
+import TenantApplications from './tenant/TenantApplications';
 
 export default function Applications() {
   const { user } = useAuth();

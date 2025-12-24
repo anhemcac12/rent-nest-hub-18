@@ -36,7 +36,7 @@ const mainNavItems = [
   { title: 'Dashboard', url: '/dashboard', icon: Home },
   { title: 'My Properties', url: '/dashboard/properties', icon: Building2 },
   { title: 'Applications', url: '/dashboard/applications', icon: FileText },
-  { title: 'Lease Agreements', url: '/dashboard/leases', icon: ScrollText },
+  { title: 'Lease Agreements', url: '/dashboard/landlord-leases', icon: ScrollText },
   { title: 'Messages', url: '/dashboard/messages', icon: MessageSquare },
   { title: 'Notifications', url: '/dashboard/notifications', icon: Bell, showBadge: true },
 ];
