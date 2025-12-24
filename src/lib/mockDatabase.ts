@@ -736,8 +736,41 @@ function createLeaseAgreement(application: Application, tenant?: User): void {
   localStorage.setItem(`${LEASE_AGREEMENTS_KEY}_${application.property.landlord.id}`, JSON.stringify(leases));
 }
 
+// Check and update expired leases
+function checkAndUpdateExpiredLeases(landlordId: string): void {
+  const stored = localStorage.getItem(`${LEASE_AGREEMENTS_KEY}_${landlordId}`);
+  if (!stored) return;
+  
+  const leases: LeaseAgreement[] = JSON.parse(stored);
+  const now = new Date();
+  let hasUpdates = false;
+  
+  const updatedLeases = leases.map(lease => {
+    // Only check active leases for expiration
+    if (lease.status === 'active') {
+      const endDate = new Date(lease.endDate);
+      if (endDate < now) {
+        hasUpdates = true;
+        return {
+          ...lease,
+          status: 'expired' as const,
+          updatedAt: now.toISOString(),
+        };
+      }
+    }
+    return lease;
+  });
+  
+  if (hasUpdates) {
+    localStorage.setItem(`${LEASE_AGREEMENTS_KEY}_${landlordId}`, JSON.stringify(updatedLeases));
+  }
+}
+
 // Get lease agreements for landlord
 export function getLeaseAgreements(landlordId: string): LeaseAgreement[] {
+  // Check for expired leases first
+  checkAndUpdateExpiredLeases(landlordId);
+  
   const stored = localStorage.getItem(`${LEASE_AGREEMENTS_KEY}_${landlordId}`);
   return stored ? JSON.parse(stored) : [];
 }
