@@ -50,6 +50,23 @@ function initializeDatabase(): void {
   const existingUsers = localStorage.getItem(USERS_KEY);
   if (!existingUsers) {
     localStorage.setItem(USERS_KEY, JSON.stringify(seedUsers));
+  } else {
+    // Ensure property manager exists in existing users
+    const users = JSON.parse(existingUsers);
+    const pmExists = users.some((u: User) => u.id === 'pm-001');
+    if (!pmExists) {
+      const pmUser = seedUsers.find(u => u.id === 'pm-001');
+      if (pmUser) {
+        users.push(pmUser);
+        localStorage.setItem(USERS_KEY, JSON.stringify(users));
+      }
+    }
+    // Remove admin user if exists
+    const adminIndex = users.findIndex((u: User) => u.id === 'admin-001');
+    if (adminIndex !== -1) {
+      users.splice(adminIndex, 1);
+      localStorage.setItem(USERS_KEY, JSON.stringify(users));
+    }
   }
   // Initialize sample lease agreements for demo landlord
   initializeSampleLeases();
