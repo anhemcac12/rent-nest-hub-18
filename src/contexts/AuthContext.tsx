@@ -1,6 +1,8 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { CurrentUser, UserRole } from '@/types/user';
 import { getCurrentUser, loginUser, signupUser, logoutUser } from '@/lib/mockDatabase';
+
+// Auth context for managing user authentication state
 
 interface AuthContextType {
   user: CurrentUser | null;
@@ -13,7 +15,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<CurrentUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
