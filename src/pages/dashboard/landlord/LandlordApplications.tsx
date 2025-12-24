@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Check, X, Eye, Clock, User, Calendar, MessageSquare } from 'lucide-react';
+import { Check, X, Eye, Clock, User, Calendar, MessageSquare, FileText } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -9,10 +9,12 @@ import { useAuth } from '@/contexts/AuthContext';
 import { 
   getApplicationsForLandlord, 
   updateApplicationStatus, 
-  getUsers 
+  getUsers,
+  createLeaseFromApplication
 } from '@/lib/mockDatabase';
 import { Application } from '@/types/tenant';
 import { User as UserType } from '@/types/user';
+import { LeaseDocument } from '@/types/landlord';
 import { 
   Dialog, 
   DialogContent, 
@@ -26,6 +28,7 @@ import { Label } from '@/components/ui/label';
 import { toast } from '@/hooks/use-toast';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ChevronDown } from 'lucide-react';
+import { CreateLeaseModal } from '@/components/landlord/CreateLeaseModal';
 
 export default function LandlordApplications() {
   const { user } = useAuth();
@@ -36,6 +39,7 @@ export default function LandlordApplications() {
   const [actionType, setActionType] = useState<'approve' | 'reject' | null>(null);
   const [message, setMessage] = useState('');
   const [expandedApp, setExpandedApp] = useState<string | null>(null);
+  const [creatingLeaseFor, setCreatingLeaseFor] = useState<Application | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -55,33 +59,90 @@ export default function LandlordApplications() {
   };
 
   const handleAction = () => {
-    if (!reviewingApp || !actionType) return;
+    if (!reviewingApp || !actionType || !user) return;
 
-    const success = updateApplicationStatus(
-      reviewingApp.id,
-      actionType === 'approve' ? 'approved' : 'rejected',
-      message
+    if (actionType === 'approve') {
+      // Just update status to approved, then show create lease modal
+      const success = updateApplicationStatus(
+        reviewingApp.id,
+        'approved',
+        message || 'Your application has been approved! Please review the lease agreement.'
+      );
+
+      if (success) {
+        toast({
+          title: 'Application Approved',
+          description: 'Now create the lease agreement for the tenant.',
+        });
+        refreshApplications();
+        setReviewingApp(null);
+        setActionType(null);
+        setMessage('');
+        
+        // Find the updated application and open lease creation
+        const updatedApps = getApplicationsForLandlord(user.id);
+        const approvedApp = updatedApps.find(a => a.id === reviewingApp.id);
+        if (approvedApp) {
+          setCreatingLeaseFor(approvedApp);
+        }
+      }
+    } else {
+      // Reject
+      const success = updateApplicationStatus(
+        reviewingApp.id,
+        'rejected',
+        message
+      );
+
+      if (success) {
+        toast({
+          title: 'Application Rejected',
+          description: 'The tenant has been notified of your decision.',
+        });
+        refreshApplications();
+      } else {
+        toast({
+          title: 'Error',
+          description: 'Failed to update application status.',
+          variant: 'destructive',
+        });
+      }
+
+      setReviewingApp(null);
+      setActionType(null);
+      setMessage('');
+    }
+  };
+
+  const handleCreateLease = (leaseData: {
+    monthlyRent: number;
+    securityDeposit: number;
+    startDate: string;
+    endDate: string;
+    documents: LeaseDocument[];
+  }) => {
+    if (!creatingLeaseFor || !user) return;
+
+    const lease = createLeaseFromApplication(
+      creatingLeaseFor.id,
+      user.id,
+      leaseData
     );
 
-    if (success) {
+    if (lease) {
       toast({
-        title: actionType === 'approve' ? 'Application Approved' : 'Application Rejected',
-        description: actionType === 'approve' 
-          ? 'A lease agreement has been created and the tenant has been notified.'
-          : 'The tenant has been notified of your decision.',
+        title: 'Lease Agreement Created',
+        description: 'The tenant has been notified to review and accept the lease.',
       });
+      setCreatingLeaseFor(null);
       refreshApplications();
     } else {
       toast({
         title: 'Error',
-        description: 'Failed to update application status.',
+        description: 'Failed to create lease agreement.',
         variant: 'destructive',
       });
     }
-
-    setReviewingApp(null);
-    setActionType(null);
-    setMessage('');
   };
 
   const getStatusBadge = (status: string) => {
@@ -322,6 +383,16 @@ export default function LandlordApplications() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Create Lease Modal */}
+      {creatingLeaseFor && (
+        <CreateLeaseModal
+          open={!!creatingLeaseFor}
+          onOpenChange={(open) => !open && setCreatingLeaseFor(null)}
+          application={creatingLeaseFor}
+          onSubmit={handleCreateLease}
+        />
+      )}
     </div>
   );
 }

@@ -25,6 +25,7 @@ import Maintenance from "./pages/dashboard/Maintenance";
 import Documents from "./pages/dashboard/Documents";
 import Profile from "./pages/dashboard/Profile";
 import Notifications from "./pages/dashboard/Notifications";
+import TenantLeases from "./pages/dashboard/TenantLeases";
 
 // Landlord Dashboard imports
 import LandlordDashboardHome from "./pages/dashboard/landlord/LandlordDashboardHome";
@@ -68,6 +69,9 @@ const App = () => (
               <Route path="messages/:id" element={<Messages />} />
               <Route path="maintenance" element={<Maintenance />} />
               <Route path="documents" element={<Documents />} />
+              
+              {/* Tenant lease agreements */}
+              <Route path="leases" element={<TenantLeases />} />
               
               {/* Landlord-specific routes */}
               <Route path="properties" element={<LandlordProperties />} />
