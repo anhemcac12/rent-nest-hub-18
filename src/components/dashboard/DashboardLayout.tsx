@@ -1,14 +1,13 @@
 import { Outlet, Navigate } from 'react-router-dom';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
-import { DashboardSidebar } from './DashboardSidebar';
 import { TenantSidebar } from './TenantSidebar';
 import { LandlordSidebar } from './LandlordSidebar';
+import { PropertyManagerSidebar } from './PropertyManagerSidebar';
 import { useAuth } from '@/contexts/AuthContext';
 
 export function DashboardLayout() {
   const { isAuthenticated, isLoading, user } = useAuth();
 
-  // Show loading spinner while auth state is being determined
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -17,15 +16,16 @@ export function DashboardLayout() {
     );
   }
 
-  // Redirect to auth page if not logged in
   if (!isAuthenticated) {
     return <Navigate to="/auth" replace />;
   }
 
-  // Determine which sidebar to render based on user role
   const renderSidebar = () => {
     if (user?.role === 'landlord') {
       return <LandlordSidebar />;
+    }
+    if (user?.role === 'property_manager') {
+      return <PropertyManagerSidebar />;
     }
     return <TenantSidebar />;
   };
