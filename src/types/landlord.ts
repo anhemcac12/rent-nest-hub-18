@@ -11,6 +11,14 @@ export interface PropertyManager {
   addedAt: string;
 }
 
+export interface LeaseDocument {
+  id: string;
+  name: string;
+  type: 'pdf' | 'image';
+  url: string;
+  uploadedAt: string;
+}
+
 export interface LeaseAgreement {
   id: string;
   applicationId: string;
@@ -21,11 +29,30 @@ export interface LeaseAgreement {
   tenantEmail: string;
   tenantAvatar?: string;
   landlordId: string;
+  
+  // Lease Terms
   startDate: string;
   endDate: string;
   monthlyRent: number;
   securityDeposit: number;
-  status: 'active' | 'expired' | 'terminated';
+  
+  // Documents
+  documents: LeaseDocument[];
+  
+  // Status Flow
+  status: 'draft' | 'pending_tenant' | 'tenant_accepted' | 'payment_pending' | 'active' | 'rejected' | 'expired' | 'terminated';
+  
+  // Payment tracking
+  paymentStatus?: 'unpaid' | 'paid' | 'processing';
+  paymentAmount?: number;
+  paidAt?: string;
+  
+  // Rejection reason (if tenant rejects)
+  rejectionReason?: string;
+  
+  // Timestamps
+  sentToTenantAt?: string;
+  tenantRespondedAt?: string;
   createdAt: string;
   updatedAt: string;
 }

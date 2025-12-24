@@ -13,6 +13,7 @@ import {
   LogOut,
   ChevronLeft,
   Bell,
+  ScrollText,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -39,6 +40,7 @@ const mainNavItems = [
   { title: 'My Rentals', url: '/dashboard/rentals', icon: Building2 },
   { title: 'Saved Properties', url: '/dashboard/saved', icon: Heart },
   { title: 'Applications', url: '/dashboard/applications', icon: FileText },
+  { title: 'Lease Agreements', url: '/dashboard/leases', icon: ScrollText },
   { title: 'Payments', url: '/dashboard/payments', icon: CreditCard },
   { title: 'Messages', url: '/dashboard/messages', icon: MessageSquare },
   { title: 'Notifications', url: '/dashboard/notifications', icon: Bell, showBadge: true },

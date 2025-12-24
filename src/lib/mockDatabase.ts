@@ -572,7 +572,7 @@ export function updateApplicationStatus(
   return false;
 }
 
-// Create lease agreement
+// Create lease agreement (used internally when auto-creating from old flow)
 function createLeaseAgreement(application: Application, tenant?: User): void {
   const leases = getLeaseAgreements(application.property.landlord.id);
   const startDate = new Date();
@@ -593,6 +593,7 @@ function createLeaseAgreement(application: Application, tenant?: User): void {
     endDate: endDate.toISOString(),
     monthlyRent: application.property.price,
     securityDeposit: application.property.price * 2,
+    documents: [],
     status: 'active',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -606,6 +607,186 @@ function createLeaseAgreement(application: Application, tenant?: User): void {
 export function getLeaseAgreements(landlordId: string): LeaseAgreement[] {
   const stored = localStorage.getItem(`${LEASE_AGREEMENTS_KEY}_${landlordId}`);
   return stored ? JSON.parse(stored) : [];
+}
+
+// Create lease agreement from landlord (new enhanced flow)
+export function createLeaseFromApplication(
+  applicationId: string,
+  landlordId: string,
+  leaseData: {
+    monthlyRent: number;
+    securityDeposit: number;
+    startDate: string;
+    endDate: string;
+    documents: { id: string; name: string; type: 'pdf' | 'image'; url: string; uploadedAt: string }[];
+  }
+): LeaseAgreement | null {
+  // Find the application
+  const allUsers = getUsers();
+  let application: Application | null = null;
+  let tenant: User | null = null;
+  
+  for (const user of allUsers) {
+    const apps = getApplications(user.id);
+    const found = apps.find(a => a.id === applicationId);
+    if (found) {
+      application = found;
+      tenant = user;
+      break;
+    }
+  }
+  
+  if (!application) return null;
+  
+  const now = new Date().toISOString();
+  const newLease: LeaseAgreement = {
+    id: `lease-${Date.now()}`,
+    applicationId,
+    propertyId: application.propertyId,
+    property: application.property,
+    tenantId: application.tenantId,
+    tenantName: tenant ? `${tenant.firstName} ${tenant.lastName}` : 'Unknown',
+    tenantEmail: tenant?.email || '',
+    tenantAvatar: tenant?.avatar,
+    landlordId,
+    startDate: leaseData.startDate,
+    endDate: leaseData.endDate,
+    monthlyRent: leaseData.monthlyRent,
+    securityDeposit: leaseData.securityDeposit,
+    documents: leaseData.documents,
+    status: 'pending_tenant',
+    sentToTenantAt: now,
+    createdAt: now,
+    updatedAt: now,
+  };
+  
+  const leases = getLeaseAgreements(landlordId);
+  leases.push(newLease);
+  localStorage.setItem(`${LEASE_AGREEMENTS_KEY}_${landlordId}`, JSON.stringify(leases));
+  
+  // Notify tenant
+  createNotification(
+    application.tenantId,
+    'application',
+    'New Lease Agreement',
+    `A lease agreement for ${application.property.title} is ready for your review.`,
+    '/dashboard/leases'
+  );
+  
+  return newLease;
+}
+
+// Get leases for tenant
+export function getTenantLeases(tenantId: string): LeaseAgreement[] {
+  const allLandlords = getUsers().filter(u => u.role === 'landlord');
+  const tenantLeases: LeaseAgreement[] = [];
+  
+  allLandlords.forEach(landlord => {
+    const leases = getLeaseAgreements(landlord.id);
+    leases.forEach(lease => {
+      if (lease.tenantId === tenantId) {
+        tenantLeases.push(lease);
+      }
+    });
+  });
+  
+  return tenantLeases;
+}
+
+// Tenant accepts lease
+export function acceptLease(leaseId: string): boolean {
+  const allLandlords = getUsers().filter(u => u.role === 'landlord');
+  
+  for (const landlord of allLandlords) {
+    const leases = getLeaseAgreements(landlord.id);
+    const leaseIndex = leases.findIndex(l => l.id === leaseId);
+    
+    if (leaseIndex !== -1) {
+      const now = new Date().toISOString();
+      leases[leaseIndex] = {
+        ...leases[leaseIndex],
+        status: 'payment_pending',
+        tenantRespondedAt: now,
+        updatedAt: now,
+      };
+      localStorage.setItem(`${LEASE_AGREEMENTS_KEY}_${landlord.id}`, JSON.stringify(leases));
+      return true;
+    }
+  }
+  return false;
+}
+
+// Tenant rejects lease
+export function rejectLease(leaseId: string, reason: string): boolean {
+  const allLandlords = getUsers().filter(u => u.role === 'landlord');
+  
+  for (const landlord of allLandlords) {
+    const leases = getLeaseAgreements(landlord.id);
+    const leaseIndex = leases.findIndex(l => l.id === leaseId);
+    
+    if (leaseIndex !== -1) {
+      const now = new Date().toISOString();
+      const lease = leases[leaseIndex];
+      
+      leases[leaseIndex] = {
+        ...lease,
+        status: 'rejected',
+        rejectionReason: reason,
+        tenantRespondedAt: now,
+        updatedAt: now,
+      };
+      localStorage.setItem(`${LEASE_AGREEMENTS_KEY}_${landlord.id}`, JSON.stringify(leases));
+      
+      // Notify landlord
+      createNotification(
+        landlord.id,
+        'application',
+        'Lease Agreement Rejected',
+        `${lease.tenantName} has rejected the lease for ${lease.property.title}.`,
+        '/dashboard/leases'
+      );
+      
+      return true;
+    }
+  }
+  return false;
+}
+
+// Process lease payment
+export function processLeasePayment(leaseId: string): boolean {
+  const allLandlords = getUsers().filter(u => u.role === 'landlord');
+  
+  for (const landlord of allLandlords) {
+    const leases = getLeaseAgreements(landlord.id);
+    const leaseIndex = leases.findIndex(l => l.id === leaseId);
+    
+    if (leaseIndex !== -1) {
+      const now = new Date().toISOString();
+      const lease = leases[leaseIndex];
+      
+      leases[leaseIndex] = {
+        ...lease,
+        status: 'active',
+        paymentStatus: 'paid',
+        paymentAmount: lease.securityDeposit + lease.monthlyRent,
+        paidAt: now,
+        updatedAt: now,
+      };
+      localStorage.setItem(`${LEASE_AGREEMENTS_KEY}_${landlord.id}`, JSON.stringify(leases));
+      
+      // Notify landlord
+      createNotification(
+        landlord.id,
+        'payment',
+        'Payment Received',
+        `${lease.tenantName} has paid $${(lease.securityDeposit + lease.monthlyRent).toLocaleString()} for ${lease.property.title}.`,
+        '/dashboard/leases'
+      );
+      
+      return true;
+    }
+  }
+  return false;
 }
 
 // Get landlord conversations
