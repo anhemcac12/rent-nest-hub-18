@@ -34,16 +34,6 @@ const seedUsers: User[] = [
     createdAt: new Date().toISOString(),
   },
   {
-    id: 'admin-001',
-    email: 'admin@test.com',
-    password: 'password123',
-    role: 'admin',
-    firstName: 'Admin',
-    lastName: 'User',
-    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=admin',
-    createdAt: new Date().toISOString(),
-  },
-  {
     id: 'pm-001',
     email: 'manager@test.com',
     password: 'password123',

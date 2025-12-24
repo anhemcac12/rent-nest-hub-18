@@ -125,7 +125,7 @@ export default function Auth() {
             <CardContent className="text-xs space-y-1">
               <div><strong>Tenant:</strong> tenant@test.com / password123</div>
               <div><strong>Landlord:</strong> landlord@test.com / password123</div>
-              <div><strong>Admin:</strong> admin@test.com / password123</div>
+              <div><strong>Property Manager:</strong> manager@test.com / password123</div>
             </CardContent>
           </Card>
 
