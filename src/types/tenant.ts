@@ -96,18 +96,23 @@ export interface Message {
 export interface MaintenanceRequest {
   id: string;
   rentalId: string;
+  propertyId: string;
   propertyTitle: string;
+  tenantId: string;
+  tenantName: string;
+  landlordId: string;
   title: string;
   description: string;
   priority: 'low' | 'medium' | 'high' | 'urgent';
-  status: 'open' | 'in_progress' | 'scheduled' | 'completed';
-  category: 'plumbing' | 'electrical' | 'hvac' | 'appliance' | 'structural' | 'other';
+  status: 'open' | 'accepted' | 'rejected' | 'in_progress' | 'scheduled' | 'completed';
   images?: string[];
   createdAt: string;
   updatedAt: string;
   scheduledFor?: string;
   completedAt?: string;
+  resolvedAt?: string;
   notes?: string;
+  rejectionReason?: string;
   timeline: MaintenanceEvent[];
 }
 
@@ -116,6 +121,7 @@ export interface MaintenanceEvent {
   status: MaintenanceRequest['status'];
   message: string;
   timestamp: string;
+  actor?: 'tenant' | 'landlord' | 'system';
 }
 
 export interface Document {
