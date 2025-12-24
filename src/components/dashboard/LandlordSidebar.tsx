@@ -10,7 +10,7 @@ import {
   ChevronLeft,
   Bell,
   ScrollText,
-  Users,
+  Wrench,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -37,6 +37,7 @@ const mainNavItems = [
   { title: 'My Properties', url: '/dashboard/properties', icon: Building2 },
   { title: 'Applications', url: '/dashboard/applications', icon: FileText },
   { title: 'Lease Agreements', url: '/dashboard/landlord-leases', icon: ScrollText },
+  { title: 'Maintenance', url: '/dashboard/landlord-maintenance', icon: Wrench },
   { title: 'Messages', url: '/dashboard/messages', icon: MessageSquare },
   { title: 'Notifications', url: '/dashboard/notifications', icon: Bell, showBadge: true },
 ];

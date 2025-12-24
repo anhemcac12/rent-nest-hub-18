@@ -32,6 +32,7 @@ import TenantLeases from "./pages/dashboard/tenant/TenantLeases";
 // Landlord Dashboard imports
 import LandlordProperties from "./pages/dashboard/landlord/LandlordProperties";
 import LeaseAgreements from "./pages/dashboard/landlord/LeaseAgreements";
+import LandlordMaintenance from "./pages/dashboard/landlord/LandlordMaintenance";
 
 const queryClient = new QueryClient();
 
@@ -73,6 +74,7 @@ const App = () => (
               {/* Landlord-specific routes */}
               <Route path="properties" element={<LandlordProperties />} />
               <Route path="landlord-leases" element={<LeaseAgreements />} />
+              <Route path="landlord-maintenance" element={<LandlordMaintenance />} />
             </Route>
             
             <Route path="*" element={<NotFound />} />

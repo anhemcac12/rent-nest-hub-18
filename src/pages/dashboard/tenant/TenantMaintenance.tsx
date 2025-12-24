@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { format, parseISO } from 'date-fns';
 import {
   Wrench,
@@ -10,8 +10,13 @@ import {
   Filter,
   ChevronDown,
   ChevronUp,
+  XCircle,
+  ThumbsUp,
+  Upload,
+  X,
+  Image as ImageIcon,
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -44,6 +49,8 @@ import { toast } from 'sonner';
 
 const statusConfig = {
   open: { label: 'Open', icon: AlertTriangle, className: 'bg-warning/10 text-warning' },
+  accepted: { label: 'Accepted', icon: ThumbsUp, className: 'bg-accent/10 text-accent' },
+  rejected: { label: 'Rejected', icon: XCircle, className: 'bg-destructive/10 text-destructive' },
   in_progress: { label: 'In Progress', icon: Clock, className: 'bg-info/10 text-info' },
   scheduled: { label: 'Scheduled', icon: Calendar, className: 'bg-primary/10 text-primary' },
   completed: { label: 'Completed', icon: CheckCircle2, className: 'bg-accent/10 text-accent' },
@@ -54,15 +61,6 @@ const priorityConfig = {
   medium: { label: 'Medium', className: 'bg-warning/10 text-warning' },
   high: { label: 'High', className: 'bg-orange-500/10 text-orange-500' },
   urgent: { label: 'Urgent', className: 'bg-destructive/10 text-destructive' },
-};
-
-const categoryLabels = {
-  plumbing: 'Plumbing',
-  electrical: 'Electrical',
-  hvac: 'HVAC',
-  appliance: 'Appliance',
-  structural: 'Structural',
-  other: 'Other',
 };
 
 function MaintenanceCard({ request }: { request: MaintenanceRequest }) {
@@ -85,7 +83,6 @@ function MaintenanceCard({ request }: { request: MaintenanceRequest }) {
                 <Badge variant="outline" className={priorityCfg.className}>
                   {priorityCfg.label} Priority
                 </Badge>
-                <Badge variant="outline">{categoryLabels[request.category]}</Badge>
               </div>
               <h3 className="font-semibold text-lg">{request.title}</h3>
               <p className="text-sm text-muted-foreground">{request.propertyTitle}</p>
@@ -100,6 +97,20 @@ function MaintenanceCard({ request }: { request: MaintenanceRequest }) {
 
           <p className="text-sm">{request.description}</p>
 
+          {/* Display images if any */}
+          {request.images && request.images.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {request.images.map((img, idx) => (
+                <img
+                  key={idx}
+                  src={img}
+                  alt={`Issue ${idx + 1}`}
+                  className="h-20 w-20 object-cover rounded-lg border"
+                />
+              ))}
+            </div>
+          )}
+
           {request.scheduledFor && (
             <div className="flex items-center gap-2 p-3 bg-primary/5 rounded-lg">
               <Calendar className="h-5 w-5 text-primary" />
@@ -112,10 +123,22 @@ function MaintenanceCard({ request }: { request: MaintenanceRequest }) {
             </div>
           )}
 
+          {request.status === 'rejected' && request.rejectionReason && (
+            <div className="p-3 bg-destructive/5 rounded-lg">
+              <p className="text-sm font-medium text-destructive">Rejection Reason:</p>
+              <p className="text-sm">{request.rejectionReason}</p>
+            </div>
+          )}
+
           {request.notes && request.status === 'completed' && (
             <div className="p-3 bg-accent/5 rounded-lg">
               <p className="text-sm font-medium text-accent">Resolution Note:</p>
               <p className="text-sm">{request.notes}</p>
+              {request.resolvedAt && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Resolved on {format(parseISO(request.resolvedAt), 'MMMM d, yyyy')}
+                </p>
+              )}
             </div>
           )}
 
@@ -163,11 +186,33 @@ function MaintenanceCard({ request }: { request: MaintenanceRequest }) {
 
 function NewRequestDialog() {
   const [open, setOpen] = useState(false);
+  const [images, setImages] = useState<string[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const activeRental = mockRentals.find((r) => r.status === 'active');
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+
+    Array.from(files).forEach((file) => {
+      if (file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setImages((prev) => [...prev, reader.result as string]);
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+  };
+
+  const removeImage = (index: number) => {
+    setImages((prev) => prev.filter((_, i) => i !== index));
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     toast.success('Maintenance request submitted');
+    setImages([]);
     setOpen(false);
   };
 
@@ -209,37 +254,19 @@ function NewRequestDialog() {
               <Label htmlFor="title">Issue Title</Label>
               <Input id="title" placeholder="Brief description of the issue" required />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Category</Label>
-                <Select defaultValue="other">
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="plumbing">Plumbing</SelectItem>
-                    <SelectItem value="electrical">Electrical</SelectItem>
-                    <SelectItem value="hvac">HVAC</SelectItem>
-                    <SelectItem value="appliance">Appliance</SelectItem>
-                    <SelectItem value="structural">Structural</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Priority</Label>
-                <Select defaultValue="medium">
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="low">Low</SelectItem>
-                    <SelectItem value="medium">Medium</SelectItem>
-                    <SelectItem value="high">High</SelectItem>
-                    <SelectItem value="urgent">Urgent</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="space-y-2">
+              <Label>Priority</Label>
+              <Select defaultValue="medium">
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="low">Low</SelectItem>
+                  <SelectItem value="medium">Medium</SelectItem>
+                  <SelectItem value="high">High</SelectItem>
+                  <SelectItem value="urgent">Urgent</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="description">Description</Label>
@@ -249,6 +276,48 @@ function NewRequestDialog() {
                 rows={4}
                 required
               />
+            </div>
+            
+            {/* Image Upload Section */}
+            <div className="space-y-2">
+              <Label>Photos (optional)</Label>
+              <div className="flex flex-wrap gap-2">
+                {images.map((img, index) => (
+                  <div key={index} className="relative group">
+                    <img
+                      src={img}
+                      alt={`Upload ${index + 1}`}
+                      className="h-20 w-20 object-cover rounded-lg border"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeImage(index)}
+                      className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="h-20 w-20 border-2 border-dashed border-muted-foreground/25 rounded-lg flex flex-col items-center justify-center gap-1 hover:border-primary/50 hover:bg-primary/5 transition-colors"
+                >
+                  <Upload className="h-5 w-5 text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground">Add</span>
+                </button>
+              </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={handleImageUpload}
+                className="hidden"
+              />
+              <p className="text-xs text-muted-foreground">
+                Upload photos to help describe the issue
+              </p>
             </div>
           </div>
           <DialogFooter>
@@ -277,7 +346,7 @@ export default function Maintenance() {
     filteredRequests = filteredRequests.filter((r) => r.priority === priorityFilter);
   }
 
-  const openCount = mockMaintenanceRequests.filter((r) => r.status !== 'completed').length;
+  const openCount = mockMaintenanceRequests.filter((r) => !['completed', 'rejected'].includes(r.status)).length;
   const completedCount = mockMaintenanceRequests.filter((r) => r.status === 'completed').length;
 
   return (
@@ -302,6 +371,8 @@ export default function Maintenance() {
           <SelectContent>
             <SelectItem value="all">All Status</SelectItem>
             <SelectItem value="open">Open</SelectItem>
+            <SelectItem value="accepted">Accepted</SelectItem>
+            <SelectItem value="rejected">Rejected</SelectItem>
             <SelectItem value="in_progress">In Progress</SelectItem>
             <SelectItem value="scheduled">Scheduled</SelectItem>
             <SelectItem value="completed">Completed</SelectItem>
