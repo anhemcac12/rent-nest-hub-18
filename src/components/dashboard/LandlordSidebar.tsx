@@ -152,12 +152,12 @@ export function LandlordSidebar() {
             <Avatar className="h-10 w-10">
               <AvatarImage src={user?.avatar} />
               <AvatarFallback>
-                {user?.firstName?.[0]}{user?.lastName?.[0]}
+                {user?.fullName?.split(' ').map(n => n[0]).join('').slice(0, 2)}
               </AvatarFallback>
             </Avatar>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-sidebar-foreground truncate">
-                {user?.firstName} {user?.lastName}
+                {user?.fullName}
               </p>
               <p className="text-xs text-muted-foreground truncate">
                 Landlord
@@ -172,7 +172,7 @@ export function LandlordSidebar() {
             <Avatar className="h-8 w-8">
               <AvatarImage src={user?.avatar} />
               <AvatarFallback>
-                {user?.firstName?.[0]}{user?.lastName?.[0]}
+                {user?.fullName?.split(' ').map(n => n[0]).join('').slice(0, 2)}
               </AvatarFallback>
             </Avatar>
             <Button variant="ghost" size="icon" onClick={logout} className="h-8 w-8">

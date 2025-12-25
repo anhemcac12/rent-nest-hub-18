@@ -51,7 +51,7 @@ export function Header() {
 
   const getInitials = () => {
     if (!user) return 'U';
-    return `${user.firstName[0]}${user.lastName[0]}`.toUpperCase();
+    return user.fullName?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'U';
   };
 
   const handleNotificationClick = (notification: Notification) => {
@@ -164,7 +164,7 @@ export function Header() {
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                       <Avatar className="h-10 w-10">
-                        <AvatarImage src={user.avatar} alt={user.firstName} />
+                        <AvatarImage src={user.avatar} alt={user.fullName} />
                         <AvatarFallback>{getInitials()}</AvatarFallback>
                       </Avatar>
                     </Button>
@@ -172,7 +172,7 @@ export function Header() {
                   <DropdownMenuContent className="w-56" align="end" forceMount>
                     <DropdownMenuLabel className="font-normal">
                       <div className="flex flex-col space-y-1">
-                        <p className="text-sm font-medium">{user.firstName} {user.lastName}</p>
+                        <p className="text-sm font-medium">{user.fullName}</p>
                         <p className="text-xs text-muted-foreground">{user.email}</p>
                         <p className="text-xs text-muted-foreground capitalize">Role: {user.role}</p>
                       </div>
@@ -243,7 +243,7 @@ export function Header() {
                 {isAuthenticated && user ? (
                   <>
                     <div className="px-4 py-2 text-sm">
-                      <p className="font-medium">{user.firstName} {user.lastName}</p>
+                      <p className="font-medium">{user.fullName}</p>
                       <p className="text-xs text-muted-foreground">{user.email}</p>
                     </div>
                     <Button variant="outline" asChild className="justify-start">

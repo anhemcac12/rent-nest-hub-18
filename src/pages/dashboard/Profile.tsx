@@ -44,10 +44,9 @@ export default function Profile() {
   const { user, logout } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
-    firstName: user?.firstName || '',
-    lastName: user?.lastName || '',
+    fullName: user?.fullName || '',
     email: user?.email || '',
-    phone: '',
+    phone: user?.phone || '',
     bio: '',
     emergencyName: '',
     emergencyPhone: '',
@@ -123,7 +122,7 @@ export default function Profile() {
               <Avatar className="h-24 w-24">
                 <AvatarImage src={user?.avatar} />
                 <AvatarFallback className="text-2xl">
-                  {user?.firstName?.[0]}{user?.lastName?.[0]}
+                  {user?.fullName?.split(' ').map(n => n[0]).join('').slice(0, 2)}
                 </AvatarFallback>
               </Avatar>
               {isEditing && (
@@ -139,7 +138,7 @@ export default function Profile() {
             </div>
             <div>
               <h3 className="font-semibold text-lg">
-                {user?.firstName} {user?.lastName}
+                {user?.fullName}
               </h3>
               <p className="text-muted-foreground">{user?.email}</p>
               <p className="text-sm text-muted-foreground">
@@ -152,21 +151,12 @@ export default function Profile() {
 
           {/* Form Fields */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="firstName">First Name</Label>
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="fullName">Full Name</Label>
               <Input
-                id="firstName"
-                value={formData.firstName}
-                onChange={(e) => handleInputChange('firstName', e.target.value)}
-                disabled={!isEditing}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="lastName">Last Name</Label>
-              <Input
-                id="lastName"
-                value={formData.lastName}
-                onChange={(e) => handleInputChange('lastName', e.target.value)}
+                id="fullName"
+                value={formData.fullName}
+                onChange={(e) => handleInputChange('fullName', e.target.value)}
                 disabled={!isEditing}
               />
             </div>
@@ -179,8 +169,8 @@ export default function Profile() {
                 id="email"
                 type="email"
                 value={formData.email}
-                onChange={(e) => handleInputChange('email', e.target.value)}
-                disabled={!isEditing}
+                disabled
+                className="bg-muted"
               />
             </div>
             <div className="space-y-2">

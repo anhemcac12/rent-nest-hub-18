@@ -112,14 +112,14 @@ export default function PropertyManagerMessages() {
                         <div className="flex items-start gap-3">
                           <Avatar className="h-10 w-10">
                             <AvatarImage src={tenant?.avatar} />
-                            <AvatarFallback>
-                              {tenant?.firstName?.[0]}{tenant?.lastName?.[0]}
+                          <AvatarFallback>
+                              {tenant?.fullName?.split(' ').map(n => n[0]).join('').slice(0, 2)}
                             </AvatarFallback>
                           </Avatar>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between">
                               <p className="font-medium text-sm truncate">
-                                {tenant ? `${tenant.firstName} ${tenant.lastName}` : 'Unknown Tenant'}
+                                {tenant?.fullName || 'Unknown Tenant'}
                               </p>
                               {conv.unreadCount > 0 && (
                                 <span className="h-5 min-w-[20px] px-1.5 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center">
@@ -159,7 +159,7 @@ export default function PropertyManagerMessages() {
                       {(() => {
                         const tenantId = getConversationTenantId(selectedConv);
                         const tenant = tenantId ? getTenantInfo(tenantId) : null;
-                        return tenant ? `${tenant.firstName} ${tenant.lastName}` : 'Unknown Tenant';
+                        return tenant?.fullName || 'Unknown Tenant';
                       })()}
                     </CardTitle>
                     <p className="text-xs text-muted-foreground">{selectedConv.propertyTitle}</p>

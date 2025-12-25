@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
-import { Home, Mail, Lock, User, Eye, EyeOff, Building, Users, KeyRound } from 'lucide-react';
+import { Home, Mail, Lock, User, Eye, EyeOff, Building, Users, KeyRound, Phone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -24,8 +24,8 @@ export default function Auth() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
+    fullName: '',
+    phone: '',
     email: '',
     password: '',
     confirmPassword: '',
@@ -65,8 +65,8 @@ export default function Auth() {
         const result = await signup(
           formData.email,
           formData.password,
-          formData.firstName,
-          formData.lastName,
+          formData.fullName,
+          formData.phone,
           role
         );
         
@@ -200,32 +200,37 @@ export default function Auth() {
                   </div>
                 )}
 
-                {/* Name Fields (Signup only) */}
+                {/* Name and Phone Fields (Signup only) */}
                 {mode === 'signup' && (
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="firstName">First Name</Label>
+                      <Label htmlFor="fullName">Full Name</Label>
                       <div className="relative">
                         <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                         <Input
-                          id="firstName"
-                          placeholder="John"
-                          value={formData.firstName}
-                          onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                          id="fullName"
+                          placeholder="John Doe"
+                          value={formData.fullName}
+                          onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
                           className="pl-10"
                           required
                         />
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="lastName">Last Name</Label>
-                      <Input
-                        id="lastName"
-                        placeholder="Doe"
-                        value={formData.lastName}
-                        onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                        required
-                      />
+                      <Label htmlFor="phone">Phone Number</Label>
+                      <div className="relative">
+                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                        <Input
+                          id="phone"
+                          type="tel"
+                          placeholder="+1234567890"
+                          value={formData.phone}
+                          onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                          className="pl-10"
+                          required
+                        />
+                      </div>
                     </div>
                   </div>
                 )}
