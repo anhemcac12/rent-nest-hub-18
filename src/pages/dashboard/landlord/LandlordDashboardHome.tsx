@@ -63,7 +63,7 @@ export default function LandlordDashboardHome() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Landlord Dashboard</h1>
         <p className="text-muted-foreground">
-          Welcome back, {user?.firstName}! Here's an overview of your properties.
+          Welcome back, {user?.fullName?.split(' ')[0]}! Here's an overview of your properties.
         </p>
       </div>
 

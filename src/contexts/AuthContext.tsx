@@ -9,7 +9,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  signup: (email: string, password: string, firstName: string, lastName: string, role: UserRole) => Promise<{ success: boolean; error?: string }>;
+  signup: (email: string, password: string, fullName: string, phone: string, role: UserRole) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
 }
 
@@ -40,11 +40,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signup = async (
     email: string,
     password: string,
-    firstName: string,
-    lastName: string,
+    fullName: string,
+    phone: string,
     role: UserRole
   ): Promise<{ success: boolean; error?: string }> => {
-    const result = signupUser(email, password, firstName, lastName, role);
+    const result = signupUser(email, password, fullName, phone, role);
     if (result.success && result.user) {
       setUser(result.user);
       return { success: true };

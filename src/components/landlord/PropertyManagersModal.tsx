@@ -72,7 +72,7 @@ export function PropertyManagersModal({ open, onClose, property }: PropertyManag
       setIsAdding(false);
       toast({
         title: 'Manager Added',
-        description: `${user.firstName} ${user.lastName} has been added as a manager.`,
+        description: `${user.fullName} has been added as a manager.`,
       });
     }
   };

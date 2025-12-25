@@ -43,7 +43,7 @@ export default function TenantDashboardHome() {
       {/* Welcome Header */}
       <div>
         <h1 className="text-3xl font-bold">
-          Welcome back, {user?.firstName}!
+          Welcome back, {user?.fullName?.split(' ')[0]}!
         </h1>
         <p className="text-muted-foreground mt-1">
           Here's what's happening with your rentals

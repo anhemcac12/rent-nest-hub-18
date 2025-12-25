@@ -250,13 +250,13 @@ export default function PropertyManagerApplications() {
                             <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-lg">
                               <Avatar className="h-12 w-12">
                                 <AvatarImage src={tenant?.avatar} />
-                                <AvatarFallback>
-                                  {tenant?.firstName?.[0]}{tenant?.lastName?.[0]}
+                              <AvatarFallback>
+                                  {tenant?.fullName?.split(' ').map(n => n[0]).join('').slice(0, 2)}
                                 </AvatarFallback>
                               </Avatar>
                               <div className="flex-1">
                                 <h4 className="font-semibold">
-                                  {tenant?.firstName} {tenant?.lastName}
+                                  {tenant?.fullName}
                                 </h4>
                                 <p className="text-sm text-muted-foreground">{tenant?.email}</p>
                               </div>

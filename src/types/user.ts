@@ -5,10 +5,9 @@ export interface User {
   email: string;
   password: string;
   role: UserRole;
-  firstName: string;
-  lastName: string;
+  fullName: string;
+  phone: string;
   avatar?: string;
-  phone?: string;
   createdAt: string;
 }
 
@@ -16,7 +15,7 @@ export interface CurrentUser {
   id: string;
   email: string;
   role: UserRole;
-  firstName: string;
-  lastName: string;
+  fullName: string;
+  phone: string;
   avatar?: string;
 }

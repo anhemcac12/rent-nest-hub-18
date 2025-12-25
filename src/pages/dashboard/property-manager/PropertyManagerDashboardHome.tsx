@@ -67,7 +67,7 @@ export default function PropertyManagerDashboardHome() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Property Manager Dashboard</h1>
         <p className="text-muted-foreground">
-          Welcome back, {user?.firstName}! Here's an overview of your managed properties.
+          Welcome back, {user?.fullName?.split(' ')[0]}! Here's an overview of your managed properties.
         </p>
       </div>
 
