@@ -1,9 +1,10 @@
 import { Outlet, Navigate } from 'react-router-dom';
-import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
+import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
 import { TenantSidebar } from './TenantSidebar';
 import { LandlordSidebar } from './LandlordSidebar';
 import { PropertyManagerSidebar } from './PropertyManagerSidebar';
 import { useAuth } from '@/contexts/AuthContext';
+import { Building2 } from 'lucide-react';
 
 export function DashboardLayout() {
   const { isAuthenticated, isLoading, user } = useAuth();
@@ -34,8 +35,17 @@ export function DashboardLayout() {
     <SidebarProvider defaultOpen={true}>
       <div className="min-h-screen flex w-full bg-background">
         {renderSidebar()}
-        <SidebarInset className="flex-1">
-          <main className="flex-1 p-6">
+        <SidebarInset className="flex-1 flex flex-col">
+          {/* Mobile header with menu trigger */}
+          <header className="sticky top-0 z-40 flex h-14 items-center gap-4 border-b bg-background px-4 md:hidden">
+            <SidebarTrigger />
+            <div className="flex items-center gap-2">
+              <Building2 className="h-6 w-6 text-primary" />
+              <span className="font-bold text-foreground">RentMate</span>
+            </div>
+          </header>
+          
+          <main className="flex-1 p-4 md:p-6">
             <Outlet />
           </main>
         </SidebarInset>
