@@ -6,11 +6,11 @@ import PropertyManagerDashboardHome from './property-manager/PropertyManagerDash
 export default function DashboardHome() {
   const { user } = useAuth();
 
-  if (user?.role === 'landlord') {
+  if (user?.role === 'LANDLORD') {
     return <LandlordDashboardHome />;
   }
 
-  if (user?.role === 'property_manager') {
+  if (user?.role === 'PROPERTY_MANAGER') {
     return <PropertyManagerDashboardHome />;
   }
 

@@ -17,7 +17,7 @@ const seedUsers: User[] = [
     id: 'tenant-001',
     email: 'tenant@test.com',
     password: 'password123',
-    role: 'tenant',
+    role: 'TENANT',
     fullName: 'John Tenant',
     phone: '+1234567890',
     avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=tenant',
@@ -27,7 +27,7 @@ const seedUsers: User[] = [
     id: 'landlord-001',
     email: 'landlord@test.com',
     password: 'password123',
-    role: 'landlord',
+    role: 'LANDLORD',
     fullName: 'Jane Landlord',
     phone: '+1234567891',
     avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=landlord',
@@ -37,7 +37,7 @@ const seedUsers: User[] = [
     id: 'pm-001',
     email: 'manager@test.com',
     password: 'password123',
-    role: 'property_manager',
+    role: 'PROPERTY_MANAGER',
     fullName: 'Mike Manager',
     phone: '+1234567892',
     avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=manager',
@@ -861,7 +861,7 @@ export function createLeaseFromApplication(
 
 // Get leases for tenant
 export function getTenantLeases(tenantId: string): LeaseAgreement[] {
-  const allLandlords = getUsers().filter(u => u.role === 'landlord');
+  const allLandlords = getUsers().filter(u => u.role === 'LANDLORD');
   const tenantLeases: LeaseAgreement[] = [];
   
   allLandlords.forEach(landlord => {
@@ -878,7 +878,7 @@ export function getTenantLeases(tenantId: string): LeaseAgreement[] {
 
 // Tenant accepts lease
 export function acceptLease(leaseId: string): boolean {
-  const allLandlords = getUsers().filter(u => u.role === 'landlord');
+  const allLandlords = getUsers().filter(u => u.role === 'LANDLORD');
   
   for (const landlord of allLandlords) {
     const leases = getLeaseAgreements(landlord.id);
@@ -901,7 +901,7 @@ export function acceptLease(leaseId: string): boolean {
 
 // Tenant rejects lease
 export function rejectLease(leaseId: string, reason: string): boolean {
-  const allLandlords = getUsers().filter(u => u.role === 'landlord');
+  const allLandlords = getUsers().filter(u => u.role === 'LANDLORD');
   
   for (const landlord of allLandlords) {
     const leases = getLeaseAgreements(landlord.id);
@@ -937,7 +937,7 @@ export function rejectLease(leaseId: string, reason: string): boolean {
 
 // Process lease payment
 export function processLeasePayment(leaseId: string): boolean {
-  const allLandlords = getUsers().filter(u => u.role === 'landlord');
+  const allLandlords = getUsers().filter(u => u.role === 'LANDLORD');
   
   for (const landlord of allLandlords) {
     const leases = getLeaseAgreements(landlord.id);
@@ -1081,7 +1081,7 @@ export function getPropertiesForManager(userId: string): Property[] {
   });
   
   // Also check landlord-added properties
-  const allUsers = getUsers().filter(u => u.role === 'landlord');
+  const allUsers = getUsers().filter(u => u.role === 'LANDLORD');
   allUsers.forEach(landlord => {
     const storedProps = localStorage.getItem(`${LANDLORD_PROPERTIES_KEY}_${landlord.id}`);
     if (storedProps) {
@@ -1123,7 +1123,7 @@ export function getLeasesForManager(userId: string): LeaseAgreement[] {
   const managedProperties = getPropertiesForManager(userId);
   const propertyIds = managedProperties.map(p => p.id);
   
-  const allLandlords = getUsers().filter(u => u.role === 'landlord');
+  const allLandlords = getUsers().filter(u => u.role === 'LANDLORD');
   const managerLeases: LeaseAgreement[] = [];
   
   allLandlords.forEach(landlord => {

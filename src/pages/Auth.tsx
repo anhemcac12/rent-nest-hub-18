@@ -16,10 +16,10 @@ export default function Auth() {
   const { login, signup, isAuthenticated, isLoading } = useAuth();
   
   const initialMode = searchParams.get('mode') === 'signup' ? 'signup' : 'login';
-  const initialRole = searchParams.get('role') as 'tenant' | 'landlord' | null;
+  const initialRole = searchParams.get('role') as 'TENANT' | 'LANDLORD' | null;
 
   const [mode, setMode] = useState<'login' | 'signup'>(initialMode);
-  const [role, setRole] = useState<'tenant' | 'landlord'>(initialRole || 'tenant');
+  const [role, setRole] = useState<'TENANT' | 'LANDLORD'>(initialRole || 'TENANT');
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -155,17 +155,17 @@ export default function Auth() {
                     <div className="grid grid-cols-2 gap-3">
                       <button
                         type="button"
-                        onClick={() => setRole('tenant')}
+                        onClick={() => setRole('TENANT')}
                         className={cn(
                           'flex items-center gap-3 p-4 rounded-xl border-2 transition-all',
-                          role === 'tenant' 
+                          role === 'TENANT' 
                             ? 'border-primary bg-primary/5' 
                             : 'border-border hover:border-primary/50'
                         )}
                       >
                         <div className={cn(
                           'p-2 rounded-lg',
-                          role === 'tenant' ? 'bg-primary text-primary-foreground' : 'bg-muted'
+                          role === 'TENANT' ? 'bg-primary text-primary-foreground' : 'bg-muted'
                         )}>
                           <Users className="h-5 w-5" />
                         </div>
@@ -176,17 +176,17 @@ export default function Auth() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => setRole('landlord')}
+                        onClick={() => setRole('LANDLORD')}
                         className={cn(
                           'flex items-center gap-3 p-4 rounded-xl border-2 transition-all',
-                          role === 'landlord' 
+                          role === 'LANDLORD' 
                             ? 'border-primary bg-primary/5' 
                             : 'border-border hover:border-primary/50'
                         )}
                       >
                         <div className={cn(
                           'p-2 rounded-lg',
-                          role === 'landlord' ? 'bg-primary text-primary-foreground' : 'bg-muted'
+                          role === 'LANDLORD' ? 'bg-primary text-primary-foreground' : 'bg-muted'
                         )}>
                           <Building className="h-5 w-5" />
                         </div>
@@ -397,14 +397,14 @@ export default function Auth() {
             <h2 className="text-3xl font-bold mb-4">
               {mode === 'login' 
                 ? 'Welcome Back to RentMate' 
-                : role === 'tenant' 
+                : role === 'TENANT' 
                   ? 'Find Your Dream Home' 
                   : 'List Your Property'}
             </h2>
             <p className="text-primary-foreground/80 text-lg">
               {mode === 'login'
                 ? 'Sign in to manage your properties, track applications, and connect with landlords or tenants.'
-                : role === 'tenant'
+                : role === 'TENANT'
                   ? 'Browse thousands of verified listings and find the perfect place to call home.'
                   : 'Reach millions of potential tenants and manage your properties with ease.'}
             </p>
