@@ -1,60 +1,102 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { CurrentUser, UserRole } from '@/types/user';
-import { getCurrentUser, loginUser, signupUser, logoutUser } from '@/lib/mockDatabase';
+import { UserRole } from '@/types/user';
+import { authApi, NormalizedUser, ApiError } from '@/lib/api/authApi';
 
 // Auth context for managing user authentication state
 
+// Re-export the user type from authApi for consistency
+export type AuthUser = NormalizedUser;
+
 interface AuthContextType {
-  user: CurrentUser | null;
+  user: AuthUser | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  signup: (email: string, password: string, fullName: string, phone: string, role: UserRole) => Promise<{ success: boolean; error?: string }>;
-  logout: () => void;
+  signup: (email: string, password: string, fullName: string, role: UserRole) => Promise<{ success: boolean; error?: string }>;
+  logout: () => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string, confirmNewPassword: string) => Promise<{ success: boolean; error?: string }>;
+  forgotPassword: (email: string) => Promise<{ success: boolean; error?: string }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<CurrentUser | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   // Restore session on mount
   useEffect(() => {
-    const storedUser = getCurrentUser();
-    if (storedUser) {
+    const storedUser = authApi.getStoredUser();
+    if (storedUser && authApi.isAuthenticated()) {
       setUser(storedUser);
     }
     setIsLoading(false);
   }, []);
 
   const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
-    const result = loginUser(email, password);
-    if (result.success && result.user) {
-      setUser(result.user);
+    try {
+      const normalizedUser = await authApi.login({ email, password });
+      setUser(normalizedUser);
       return { success: true };
+    } catch (error) {
+      if (error instanceof ApiError) {
+        return { success: false, error: error.message };
+      }
+      return { success: false, error: 'An unexpected error occurred' };
     }
-    return { success: false, error: result.error };
   };
 
   const signup = async (
     email: string,
     password: string,
     fullName: string,
-    phone: string,
     role: UserRole
   ): Promise<{ success: boolean; error?: string }> => {
-    const result = signupUser(email, password, fullName, phone, role);
-    if (result.success && result.user) {
-      setUser(result.user);
+    try {
+      await authApi.register({ email, password, fullName, role });
       return { success: true };
+    } catch (error) {
+      if (error instanceof ApiError) {
+        return { success: false, error: error.message };
+      }
+      return { success: false, error: 'An unexpected error occurred' };
     }
-    return { success: false, error: result.error };
   };
 
-  const logout = () => {
-    logoutUser();
-    setUser(null);
+  const logout = async () => {
+    try {
+      await authApi.logout();
+    } finally {
+      setUser(null);
+    }
+  };
+
+  const changePassword = async (
+    currentPassword: string,
+    newPassword: string,
+    confirmNewPassword: string
+  ): Promise<{ success: boolean; error?: string }> => {
+    try {
+      await authApi.changePassword({ currentPassword, newPassword, confirmNewPassword });
+      return { success: true };
+    } catch (error) {
+      if (error instanceof ApiError) {
+        return { success: false, error: error.message };
+      }
+      return { success: false, error: 'An unexpected error occurred' };
+    }
+  };
+
+  const forgotPassword = async (email: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      await authApi.forgotPassword({ email });
+      return { success: true };
+    } catch (error) {
+      if (error instanceof ApiError) {
+        return { success: false, error: error.message };
+      }
+      return { success: false, error: 'An unexpected error occurred' };
+    }
   };
 
   return (
@@ -66,6 +108,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         login,
         signup,
         logout,
+        changePassword,
+        forgotPassword,
       }}
     >
       {children}
