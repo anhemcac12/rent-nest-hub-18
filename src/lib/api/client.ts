@@ -38,6 +38,7 @@ export async function apiClient<T>(
 
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
+    'ngrok-skip-browser-warning': 'true', // Skip ngrok browser warning
     ...options.headers,
   };
 
