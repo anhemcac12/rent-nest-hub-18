@@ -10,6 +10,10 @@ export const API_ENDPOINTS = {
   AUTH_CHANGE_PASSWORD: "/api/auth/change-password",
   AUTH_FORGOT_PASSWORD: "/api/auth/forgot-password",
   AUTH_PERFORM_RESET: "/api/auth/perform-reset",
+
+  // Users
+  USER_PUBLIC_PROFILE: (userId: number) => `/api/users/${userId}`,
+  USER_ME: "/api/users/me",
 } as const;
 
 // Token storage keys
