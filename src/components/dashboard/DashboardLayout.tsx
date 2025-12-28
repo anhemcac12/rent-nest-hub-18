@@ -22,10 +22,10 @@ export function DashboardLayout() {
   }
 
   const renderSidebar = () => {
-    if (user?.role === 'landlord') {
+    if (user?.role === 'LANDLORD') {
       return <LandlordSidebar />;
     }
-    if (user?.role === 'property_manager') {
+    if (user?.role === 'PROPERTY_MANAGER') {
       return <PropertyManagerSidebar />;
     }
     return <TenantSidebar />;

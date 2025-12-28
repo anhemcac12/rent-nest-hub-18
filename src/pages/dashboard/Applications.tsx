@@ -5,7 +5,7 @@ import TenantApplications from './tenant/TenantApplications';
 export default function Applications() {
   const { user } = useAuth();
 
-  if (user?.role === 'landlord') {
+  if (user?.role === 'LANDLORD') {
     return <LandlordApplications />;
   }
 

@@ -5,7 +5,7 @@ import TenantMessages from './tenant/TenantMessages';
 export default function Messages() {
   const { user } = useAuth();
 
-  if (user?.role === 'landlord') {
+  if (user?.role === 'LANDLORD') {
     return <LandlordMessages />;
   }
 
