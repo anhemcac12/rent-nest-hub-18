@@ -12,7 +12,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Property } from '@/types/property';
 import { PropertyManager } from '@/types/landlord';
 import { getPropertyManagers, addPropertyManager, removePropertyManager, findUserByEmail } from '@/lib/mockDatabase';
 import { toast } from '@/hooks/use-toast';
@@ -21,19 +20,22 @@ import { Badge } from '@/components/ui/badge';
 interface PropertyManagersModalProps {
   open: boolean;
   onClose: () => void;
-  property: Property;
+  property?: { id: string; title: string };
+  propertyId?: number;
 }
 
-export function PropertyManagersModal({ open, onClose, property }: PropertyManagersModalProps) {
+export function PropertyManagersModal({ open, onClose, property, propertyId }: PropertyManagersModalProps) {
   const [managers, setManagers] = useState<PropertyManager[]>([]);
   const [newEmail, setNewEmail] = useState('');
   const [isAdding, setIsAdding] = useState(false);
+  
+  const propId = property?.id || String(propertyId);
 
   useEffect(() => {
-    if (open && property) {
-      setManagers(getPropertyManagers(property.id));
+    if (open && propId) {
+      setManagers(getPropertyManagers(propId));
     }
-  }, [open, property]);
+  }, [open, propId]);
 
   const handleAddManager = () => {
     if (!newEmail.trim()) {
@@ -65,7 +67,7 @@ export function PropertyManagersModal({ open, onClose, property }: PropertyManag
       return;
     }
 
-    const newManager = addPropertyManager(property.id, user);
+    const newManager = addPropertyManager(propId, user);
     if (newManager) {
       setManagers(prev => [...prev, newManager]);
       setNewEmail('');
@@ -78,7 +80,7 @@ export function PropertyManagersModal({ open, onClose, property }: PropertyManag
   };
 
   const handleRemoveManager = (managerId: string) => {
-    const success = removePropertyManager(property.id, managerId);
+    const success = removePropertyManager(propId, managerId);
     if (success) {
       setManagers(prev => prev.filter(m => m.id !== managerId));
       toast({
@@ -94,7 +96,7 @@ export function PropertyManagersModal({ open, onClose, property }: PropertyManag
         <DialogHeader>
           <DialogTitle>Property Managers</DialogTitle>
           <DialogDescription>
-            Manage who can help manage "{property.title}"
+            Manage who can help manage this property
           </DialogDescription>
         </DialogHeader>
 

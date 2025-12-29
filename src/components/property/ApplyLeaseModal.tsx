@@ -25,16 +25,35 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { createApplication, hasAppliedToProperty } from '@/lib/mockDatabase';
-import { Property } from '@/types/property';
 import { toast } from 'sonner';
+
+interface ApplyLeaseProperty {
+  id: string;
+  title: string;
+  price: number;
+  thumbnail?: string;
+  address?: {
+    street?: string;
+    city?: string;
+    state?: string;
+  };
+}
 
 interface ApplyLeaseModalProps {
   open: boolean;
-  onOpenChange: (open: boolean) => void;
-  property: Property;
+  onOpenChange?: (open: boolean) => void;
+  onClose?: () => void;
+  property: ApplyLeaseProperty;
+  onSuccess?: () => void;
 }
 
-export function ApplyLeaseModal({ open, onOpenChange, property }: ApplyLeaseModalProps) {
+export function ApplyLeaseModal({ open, onOpenChange, onClose, property, onSuccess }: ApplyLeaseModalProps) {
+  const handleClose = (isOpen: boolean) => {
+    if (!isOpen) {
+      onClose?.();
+    }
+    onOpenChange?.(isOpen);
+  };
   const navigate = useNavigate();
   const { user } = useAuth();
   const [moveInDate, setMoveInDate] = useState<Date>();
@@ -76,8 +95,8 @@ export function ApplyLeaseModal({ open, onOpenChange, property }: ApplyLeaseModa
 
     if (application) {
       toast.success('Application submitted successfully!');
-      onOpenChange(false);
-      navigate('/dashboard/applications');
+      handleClose(false);
+      onSuccess?.();
     } else {
       toast.error('Failed to submit application');
     }
@@ -86,7 +105,7 @@ export function ApplyLeaseModal({ open, onOpenChange, property }: ApplyLeaseModa
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -102,7 +121,7 @@ export function ApplyLeaseModal({ open, onOpenChange, property }: ApplyLeaseModa
           {/* Property Info */}
           <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
             <img
-              src={property.thumbnail}
+              src={property.thumbnail || '/placeholder.svg'}
               alt={property.title}
               className="w-16 h-12 object-cover rounded"
             />
