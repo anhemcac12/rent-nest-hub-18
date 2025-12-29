@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { UserRole } from '@/types/user';
 import { authApi, NormalizedUser, ApiError } from '@/lib/api/authApi';
+import { userApi } from '@/lib/api/userApi';
+import { USER_KEY } from '@/lib/api/config';
 
 // Auth context for managing user authentication state
 
@@ -16,6 +18,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   changePassword: (currentPassword: string, newPassword: string, confirmNewPassword: string) => Promise<{ success: boolean; error?: string }>;
   forgotPassword: (email: string) => Promise<{ success: boolean; error?: string }>;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -99,6 +102,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const refreshUser = async (): Promise<void> => {
+    try {
+      const profile = await userApi.getCurrentProfile();
+      const updatedUser: AuthUser = {
+        id: String(profile.id),
+        email: profile.email,
+        fullName: profile.fullName,
+        role: profile.role,
+        avatar: profile.avatarUrl,
+        phone: profile.phoneNumber,
+      };
+      setUser(updatedUser);
+      localStorage.setItem(USER_KEY, JSON.stringify(updatedUser));
+    } catch (error) {
+      console.error('Failed to refresh user:', error);
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -110,6 +131,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         logout,
         changePassword,
         forgotPassword,
+        refreshUser,
       }}
     >
       {children}
