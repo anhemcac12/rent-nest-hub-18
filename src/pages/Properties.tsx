@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Search, SlidersHorizontal, Grid3X3, List, Star, Heart, MapPin, Bed, Bath, Square, X, Loader2 } from 'lucide-react';
+import { Search, SlidersHorizontal, Grid3X3, List, Heart, MapPin, Bed, Bath, Square, X, Loader2, Calendar, Home } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -9,13 +9,52 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Slider } from '@/components/ui/slider';
+import { Switch } from '@/components/ui/switch';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { PROPERTY_TYPES, AMENITIES } from '@/types/property';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { format } from 'date-fns';
 import { propertyApi, PropertySummaryDTO, PropertySearchParams } from '@/lib/api/propertyApi';
+
+const PROPERTY_TYPE_OPTIONS = [
+  { value: 'APARTMENT', label: 'Apartment' },
+  { value: 'HOUSE', label: 'House' },
+  { value: 'STUDIO', label: 'Studio' },
+  { value: 'ROOM', label: 'Room' },
+  { value: 'CONDO', label: 'Condo' },
+  { value: 'TOWNHOUSE', label: 'Townhouse' },
+];
+
+interface FilterState {
+  priceRange: [number, number];
+  selectedBedrooms: string;
+  selectedBathrooms: string;
+  propertyType: string;
+  sizeRange: [number, number];
+  furnished: boolean | null;
+  petFriendly: boolean | null;
+  selectedAmenities: string[];
+  city: string;
+  availableFrom: Date | undefined;
+}
+
+const DEFAULT_FILTERS: FilterState = {
+  priceRange: [0, 10000],
+  selectedBedrooms: 'any',
+  selectedBathrooms: 'any',
+  propertyType: 'any',
+  sizeRange: [0, 5000],
+  furnished: null,
+  petFriendly: null,
+  selectedAmenities: [],
+  city: '',
+  availableFrom: undefined,
+};
 
 export default function Properties() {
   const navigate = useNavigate();
@@ -32,14 +71,10 @@ export default function Properties() {
   const [favorites, setFavorites] = useState<string[]>([]);
   
   // Draft filter state (before applying)
-  const [draftPriceRange, setDraftPriceRange] = useState([0, 6000]);
-  const [draftSelectedBedrooms, setDraftSelectedBedrooms] = useState<string>('any');
+  const [draftFilters, setDraftFilters] = useState<FilterState>({ ...DEFAULT_FILTERS });
   
   // Applied filter state
-  const [appliedFilters, setAppliedFilters] = useState({
-    priceRange: [0, 6000],
-    selectedBedrooms: 'any',
-  });
+  const [appliedFilters, setAppliedFilters] = useState<FilterState>({ ...DEFAULT_FILTERS });
 
   // Fetch properties from API
   const fetchProperties = useCallback(async () => {
@@ -59,17 +94,64 @@ export default function Properties() {
       if (appliedFilters.priceRange[0] > 0) {
         params.minRent = appliedFilters.priceRange[0];
       }
-      if (appliedFilters.priceRange[1] < 6000) {
+      if (appliedFilters.priceRange[1] < 10000) {
         params.maxRent = appliedFilters.priceRange[1];
       }
       
       // Add bedrooms filter
       if (appliedFilters.selectedBedrooms !== 'any') {
         const beds = parseInt(appliedFilters.selectedBedrooms);
-        params.minRooms = beds;
+        params.minBedrooms = beds;
         if (beds < 4) {
-          params.maxRooms = beds;
+          params.maxBedrooms = beds;
         }
+      }
+      
+      // Add bathrooms filter
+      if (appliedFilters.selectedBathrooms !== 'any') {
+        const baths = parseInt(appliedFilters.selectedBathrooms);
+        params.minBathrooms = baths;
+        if (baths < 4) {
+          params.maxBathrooms = baths;
+        }
+      }
+      
+      // Add property type filter
+      if (appliedFilters.propertyType !== 'any') {
+        params.type = appliedFilters.propertyType;
+      }
+      
+      // Add size filters
+      if (appliedFilters.sizeRange[0] > 0) {
+        params.minSize = appliedFilters.sizeRange[0];
+      }
+      if (appliedFilters.sizeRange[1] < 5000) {
+        params.maxSize = appliedFilters.sizeRange[1];
+      }
+      
+      // Add furnished filter
+      if (appliedFilters.furnished !== null) {
+        params.furnished = appliedFilters.furnished;
+      }
+      
+      // Add pet friendly filter
+      if (appliedFilters.petFriendly !== null) {
+        params.petFriendly = appliedFilters.petFriendly;
+      }
+      
+      // Add amenities filter
+      if (appliedFilters.selectedAmenities.length > 0) {
+        params.amenities = appliedFilters.selectedAmenities.join(',');
+      }
+      
+      // Add city filter
+      if (appliedFilters.city) {
+        params.city = appliedFilters.city;
+      }
+      
+      // Add available from filter
+      if (appliedFilters.availableFrom) {
+        params.availableFrom = format(appliedFilters.availableFrom, 'yyyy-MM-dd');
       }
       
       // Add sorting
@@ -82,6 +164,18 @@ export default function Properties() {
           break;
         case 'newest':
           params.sort = 'createdAt,desc';
+          break;
+        case 'rating':
+          params.sort = 'rating,desc';
+          break;
+        case 'popular':
+          params.sort = 'views,desc';
+          break;
+        case 'size_desc':
+          params.sort = 'size,desc';
+          break;
+        case 'size_asc':
+          params.sort = 'size,asc';
           break;
       }
       
@@ -100,7 +194,7 @@ export default function Properties() {
     fetchProperties();
   }, [fetchProperties]);
 
-  // Load user's saved properties from localStorage (will integrate with API later)
+  // Load user's saved properties from localStorage
   useEffect(() => {
     if (user) {
       const saved = localStorage.getItem(`saved_properties_${user.id}`);
@@ -113,10 +207,7 @@ export default function Properties() {
   }, [user]);
 
   const applyFilters = () => {
-    setAppliedFilters({
-      priceRange: draftPriceRange,
-      selectedBedrooms: draftSelectedBedrooms,
-    });
+    setAppliedFilters({ ...draftFilters });
     setCurrentPage(0);
   };
 
@@ -140,24 +231,68 @@ export default function Properties() {
 
   const clearFilters = () => {
     setSearchQuery('');
-    setDraftPriceRange([0, 6000]);
-    setDraftSelectedBedrooms('any');
-    setAppliedFilters({
-      priceRange: [0, 6000],
-      selectedBedrooms: 'any',
-    });
+    setDraftFilters({ ...DEFAULT_FILTERS });
+    setAppliedFilters({ ...DEFAULT_FILTERS });
     setCurrentPage(0);
   };
 
-  const hasActiveFilters = appliedFilters.priceRange[0] > 0 || appliedFilters.priceRange[1] < 6000 || appliedFilters.selectedBedrooms !== 'any';
+  const hasActiveFilters = 
+    appliedFilters.priceRange[0] > 0 || 
+    appliedFilters.priceRange[1] < 10000 || 
+    appliedFilters.selectedBedrooms !== 'any' ||
+    appliedFilters.selectedBathrooms !== 'any' ||
+    appliedFilters.propertyType !== 'any' ||
+    appliedFilters.sizeRange[0] > 0 ||
+    appliedFilters.sizeRange[1] < 5000 ||
+    appliedFilters.furnished !== null ||
+    appliedFilters.petFriendly !== null ||
+    appliedFilters.selectedAmenities.length > 0 ||
+    appliedFilters.city !== '' ||
+    appliedFilters.availableFrom !== undefined;
   
-  const hasDraftChanges = 
-    draftPriceRange[0] !== appliedFilters.priceRange[0] ||
-    draftPriceRange[1] !== appliedFilters.priceRange[1] ||
-    draftSelectedBedrooms !== appliedFilters.selectedBedrooms;
+  const hasDraftChanges = JSON.stringify(draftFilters) !== JSON.stringify(appliedFilters);
+
+  const toggleAmenity = (amenity: string) => {
+    setDraftFilters(prev => ({
+      ...prev,
+      selectedAmenities: prev.selectedAmenities.includes(amenity)
+        ? prev.selectedAmenities.filter(a => a !== amenity)
+        : [...prev.selectedAmenities, amenity]
+    }));
+  };
 
   const FiltersContent = () => (
-    <div className="space-y-5">
+    <div className="space-y-6">
+      {/* Property Type */}
+      <div className="space-y-3">
+        <Label className="text-sm font-semibold text-foreground">Property Type</Label>
+        <Select 
+          value={draftFilters.propertyType} 
+          onValueChange={(value) => setDraftFilters(prev => ({ ...prev, propertyType: value }))}
+        >
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="Any type" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="any">Any Type</SelectItem>
+            {PROPERTY_TYPE_OPTIONS.map(type => (
+              <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* City */}
+      <div className="space-y-3">
+        <Label className="text-sm font-semibold text-foreground">City</Label>
+        <Input
+          placeholder="Enter city..."
+          value={draftFilters.city}
+          onChange={(e) => setDraftFilters(prev => ({ ...prev, city: e.target.value }))}
+          className="h-10"
+        />
+      </div>
+
       {/* Price Range */}
       <div className="space-y-3">
         <Label className="text-sm font-semibold text-foreground">Price Range</Label>
@@ -166,8 +301,8 @@ export default function Properties() {
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
             <Input
               type="number"
-              value={draftPriceRange[0]}
-              onChange={(e) => setDraftPriceRange([Number(e.target.value), draftPriceRange[1]])}
+              value={draftFilters.priceRange[0]}
+              onChange={(e) => setDraftFilters(prev => ({ ...prev, priceRange: [Number(e.target.value), prev.priceRange[1]] }))}
               className="pl-7 h-10 text-sm"
               placeholder="Min"
             />
@@ -177,39 +312,189 @@ export default function Properties() {
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
             <Input
               type="number"
-              value={draftPriceRange[1]}
-              onChange={(e) => setDraftPriceRange([draftPriceRange[0], Number(e.target.value)])}
+              value={draftFilters.priceRange[1]}
+              onChange={(e) => setDraftFilters(prev => ({ ...prev, priceRange: [prev.priceRange[0], Number(e.target.value)] }))}
               className="pl-7 h-10 text-sm"
               placeholder="Max"
             />
           </div>
         </div>
         <Slider 
-          value={draftPriceRange} 
-          onValueChange={setDraftPriceRange} 
+          value={draftFilters.priceRange} 
+          onValueChange={(value) => setDraftFilters(prev => ({ ...prev, priceRange: value as [number, number] }))}
           min={0} 
-          max={6000} 
+          max={10000} 
           step={100} 
         />
       </div>
 
-      {/* Room Number */}
+      {/* Bedrooms */}
       <div className="space-y-3">
-        <Label className="text-sm font-semibold text-foreground">Room Number</Label>
+        <Label className="text-sm font-semibold text-foreground">Bedrooms</Label>
         <div className="flex gap-2">
           {['any', '1', '2', '3', '4'].map(num => (
             <button
               key={num}
-              onClick={() => setDraftSelectedBedrooms(num)}
+              onClick={() => setDraftFilters(prev => ({ ...prev, selectedBedrooms: num }))}
               className={cn(
                 'flex-1 py-2 text-sm rounded-lg border transition-all',
-                draftSelectedBedrooms === num
+                draftFilters.selectedBedrooms === num
                   ? 'bg-primary text-primary-foreground border-primary'
                   : 'border-border hover:border-primary hover:bg-primary/5'
               )}
             >
               {num === 'any' ? 'Any' : num === '4' ? '4+' : num}
             </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Bathrooms */}
+      <div className="space-y-3">
+        <Label className="text-sm font-semibold text-foreground">Bathrooms</Label>
+        <div className="flex gap-2">
+          {['any', '1', '2', '3', '4'].map(num => (
+            <button
+              key={num}
+              onClick={() => setDraftFilters(prev => ({ ...prev, selectedBathrooms: num }))}
+              className={cn(
+                'flex-1 py-2 text-sm rounded-lg border transition-all',
+                draftFilters.selectedBathrooms === num
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'border-border hover:border-primary hover:bg-primary/5'
+              )}
+            >
+              {num === 'any' ? 'Any' : num === '4' ? '4+' : num}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Size Range */}
+      <div className="space-y-3">
+        <Label className="text-sm font-semibold text-foreground">Size (sqft)</Label>
+        <div className="flex items-center gap-2">
+          <Input
+            type="number"
+            value={draftFilters.sizeRange[0]}
+            onChange={(e) => setDraftFilters(prev => ({ ...prev, sizeRange: [Number(e.target.value), prev.sizeRange[1]] }))}
+            className="h-10 text-sm"
+            placeholder="Min"
+          />
+          <span className="text-muted-foreground">—</span>
+          <Input
+            type="number"
+            value={draftFilters.sizeRange[1]}
+            onChange={(e) => setDraftFilters(prev => ({ ...prev, sizeRange: [prev.sizeRange[0], Number(e.target.value)] }))}
+            className="h-10 text-sm"
+            placeholder="Max"
+          />
+        </div>
+        <Slider 
+          value={draftFilters.sizeRange} 
+          onValueChange={(value) => setDraftFilters(prev => ({ ...prev, sizeRange: value as [number, number] }))}
+          min={0} 
+          max={5000} 
+          step={50} 
+        />
+      </div>
+
+      {/* Available From */}
+      <div className="space-y-3">
+        <Label className="text-sm font-semibold text-foreground">Available From</Label>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              className={cn(
+                'w-full justify-start text-left font-normal h-10',
+                !draftFilters.availableFrom && 'text-muted-foreground'
+              )}
+            >
+              <Calendar className="mr-2 h-4 w-4" />
+              {draftFilters.availableFrom ? format(draftFilters.availableFrom, 'PPP') : 'Any date'}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <CalendarComponent
+              mode="single"
+              selected={draftFilters.availableFrom}
+              onSelect={(date) => setDraftFilters(prev => ({ ...prev, availableFrom: date }))}
+              initialFocus
+              className="p-3 pointer-events-auto"
+            />
+            {draftFilters.availableFrom && (
+              <div className="p-3 pt-0">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setDraftFilters(prev => ({ ...prev, availableFrom: undefined }))}
+                  className="w-full"
+                >
+                  Clear date
+                </Button>
+              </div>
+            )}
+          </PopoverContent>
+        </Popover>
+      </div>
+
+      {/* Furnished & Pet Friendly */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <Label className="text-sm font-semibold text-foreground">Furnished</Label>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setDraftFilters(prev => ({ ...prev, furnished: prev.furnished === null ? true : prev.furnished === true ? false : null }))}
+              className={cn(
+                'px-3 py-1.5 text-xs rounded-full border transition-all',
+                draftFilters.furnished === null && 'bg-muted',
+                draftFilters.furnished === true && 'bg-primary text-primary-foreground border-primary',
+                draftFilters.furnished === false && 'bg-destructive/10 text-destructive border-destructive/30'
+              )}
+            >
+              {draftFilters.furnished === null ? 'Any' : draftFilters.furnished ? 'Yes' : 'No'}
+            </button>
+          </div>
+        </div>
+        <div className="flex items-center justify-between">
+          <Label className="text-sm font-semibold text-foreground">Pet Friendly</Label>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setDraftFilters(prev => ({ ...prev, petFriendly: prev.petFriendly === null ? true : prev.petFriendly === true ? false : null }))}
+              className={cn(
+                'px-3 py-1.5 text-xs rounded-full border transition-all',
+                draftFilters.petFriendly === null && 'bg-muted',
+                draftFilters.petFriendly === true && 'bg-primary text-primary-foreground border-primary',
+                draftFilters.petFriendly === false && 'bg-destructive/10 text-destructive border-destructive/30'
+              )}
+            >
+              {draftFilters.petFriendly === null ? 'Any' : draftFilters.petFriendly ? 'Yes' : 'No'}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Amenities */}
+      <div className="space-y-3">
+        <Label className="text-sm font-semibold text-foreground">Amenities</Label>
+        <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
+          {AMENITIES.map(amenity => (
+            <label
+              key={amenity}
+              className={cn(
+                'flex items-center gap-2 p-2 rounded-lg border cursor-pointer transition-all text-sm',
+                draftFilters.selectedAmenities.includes(amenity)
+                  ? 'border-primary bg-primary/5'
+                  : 'border-border hover:border-primary/50'
+              )}
+            >
+              <Checkbox
+                checked={draftFilters.selectedAmenities.includes(amenity)}
+                onCheckedChange={() => toggleAmenity(amenity)}
+              />
+              <span className="truncate">{amenity}</span>
+            </label>
           ))}
         </div>
       </div>
@@ -260,6 +545,10 @@ export default function Properties() {
                   <SelectItem value="newest">Newest</SelectItem>
                   <SelectItem value="price_asc">Price: Low to High</SelectItem>
                   <SelectItem value="price_desc">Price: High to Low</SelectItem>
+                  <SelectItem value="rating">Highest Rated</SelectItem>
+                  <SelectItem value="popular">Most Popular</SelectItem>
+                  <SelectItem value="size_desc">Largest First</SelectItem>
+                  <SelectItem value="size_asc">Smallest First</SelectItem>
                 </SelectContent>
               </Select>
               
@@ -278,7 +567,7 @@ export default function Properties() {
                     <SlidersHorizontal className="mr-2 h-4 w-4" /> Filters
                   </Button>
                 </SheetTrigger>
-                <SheetContent side="left" className="w-80">
+                <SheetContent side="left" className="w-80 overflow-y-auto">
                   <SheetHeader>
                     <SheetTitle>Filters</SheetTitle>
                   </SheetHeader>
@@ -292,8 +581,8 @@ export default function Properties() {
 
           <div className="flex gap-8">
             {/* Desktop Sidebar Filters */}
-            <aside className="hidden md:block w-72 shrink-0">
-              <div className="sticky top-24 bg-card border border-border rounded-xl p-6">
+            <aside className="hidden md:block w-80 shrink-0">
+              <div className="sticky top-24 bg-card border border-border rounded-xl p-6 max-h-[calc(100vh-8rem)] overflow-y-auto">
                 <h2 className="font-semibold text-foreground mb-6">Filters</h2>
                 <FiltersContent />
               </div>
@@ -305,6 +594,11 @@ export default function Properties() {
                 <p className="text-muted-foreground">
                   Showing <span className="font-medium text-foreground">{properties.length}</span> of {totalElements} properties
                 </p>
+                {hasActiveFilters && (
+                  <Button variant="ghost" size="sm" onClick={clearFilters} className="text-muted-foreground">
+                    <X className="mr-1 h-3 w-3" /> Clear filters
+                  </Button>
+                )}
               </div>
 
               {isLoading ? (
@@ -356,7 +650,7 @@ export default function Properties() {
                           </div>
                           <div className="flex items-center justify-between">
                             <span className="text-lg font-bold text-primary">${property.rentAmount.toLocaleString()}<span className="text-sm font-normal text-muted-foreground">/mo</span></span>
-                            <span className="text-xs text-muted-foreground capitalize">{property.type}</span>
+                            <span className="text-xs text-muted-foreground capitalize">{property.type.toLowerCase()}</span>
                           </div>
                         </CardContent>
                       </Link>
