@@ -14,16 +14,36 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
 import { createConversation, getConversationByProperty } from '@/lib/mockDatabase';
-import { Property } from '@/types/property';
 import { toast } from 'sonner';
+
+interface ContactLandlordProperty {
+  id: string;
+  title: string;
+  landlord: {
+    id: string;
+    name: string;
+    avatar: string;
+    responseRate?: number;
+    responseTime?: string;
+    propertiesCount?: number;
+    verified?: boolean;
+  };
+}
 
 interface ContactLandlordModalProps {
   open: boolean;
-  onOpenChange: (open: boolean) => void;
-  property: Property;
+  onOpenChange?: (open: boolean) => void;
+  onClose?: () => void;
+  property: ContactLandlordProperty;
 }
 
-export function ContactLandlordModal({ open, onOpenChange, property }: ContactLandlordModalProps) {
+export function ContactLandlordModal({ open, onOpenChange, onClose, property }: ContactLandlordModalProps) {
+  const handleClose = (isOpen: boolean) => {
+    if (!isOpen) {
+      onClose?.();
+    }
+    onOpenChange?.(isOpen);
+  };
   const navigate = useNavigate();
   const { user } = useAuth();
   const [subject, setSubject] = useState(`Inquiry about ${property.title}`);
@@ -43,7 +63,7 @@ export function ContactLandlordModal({ open, onOpenChange, property }: ContactLa
     const existingConv = getConversationByProperty(user.id, property.id);
     if (existingConv) {
       toast.info('You already have a conversation about this property');
-      onOpenChange(false);
+      handleClose(false);
       navigate('/dashboard/messages');
       return;
     }
@@ -60,14 +80,14 @@ export function ContactLandlordModal({ open, onOpenChange, property }: ContactLa
     );
 
     toast.success('Message sent to landlord!');
-    onOpenChange(false);
+    handleClose(false);
     navigate('/dashboard/messages');
 
     setIsSending(false);
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">

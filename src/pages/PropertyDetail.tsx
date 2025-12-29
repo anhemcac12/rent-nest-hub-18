@@ -381,9 +381,7 @@ export default function PropertyDetail() {
           address: {
             street: property.address,
             city: '',
-            state: '',
-            zipCode: '',
-            country: ''
+            state: ''
           }
         }}
         onSuccess={() => setHasApplied(true)}
