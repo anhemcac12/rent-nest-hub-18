@@ -22,6 +22,7 @@ Authorization: Bearer <jwt_token>
 ### Common Response Format
 
 **Success Response:**
+
 ```json
 {
   "success": true,
@@ -31,6 +32,7 @@ Authorization: Bearer <jwt_token>
 ```
 
 **Error Response:**
+
 ```json
 {
   "success": false,
@@ -43,26 +45,27 @@ Authorization: Bearer <jwt_token>
 
 ### HTTP Status Codes
 
-| Code | Description |
-|------|-------------|
-| 200  | Success |
-| 201  | Created |
-| 400  | Bad Request |
-| 401  | Unauthorized |
-| 403  | Forbidden |
-| 404  | Not Found |
+| Code | Description      |
+| ---- | ---------------- |
+| 200  | Success          |
+| 201  | Created          |
+| 400  | Bad Request      |
+| 401  | Unauthorized     |
+| 403  | Forbidden        |
+| 404  | Not Found        |
 | 422  | Validation Error |
-| 500  | Server Error |
+| 500  | Server Error     |
 
 ---
 
-## 1. Authentication Endpoints
+## 1. Authentication Endpoints (DONE)
 
 ### POST /auth/login
 
-Login with email and password.
+Login with email and password. (DONE)
 
 **Request:**
+
 ```json
 {
   "email": "user@example.com",
@@ -71,6 +74,7 @@ Login with email and password.
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -93,11 +97,12 @@ Login with email and password.
 
 ---
 
-### POST /auth/register
+### POST /auth/register (DONE)
 
 Register a new user.
 
 **Request:**
+
 ```json
 {
   "email": "user@example.com",
@@ -110,6 +115,7 @@ Register a new user.
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -136,6 +142,7 @@ Logout current user (invalidate token).
 **Headers:** `Authorization: Bearer <token>`
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -152,6 +159,7 @@ Get current authenticated user.
 **Headers:** `Authorization: Bearer <token>`
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -201,6 +209,7 @@ Update user profile.
 **Headers:** `Authorization: Bearer <token>`
 
 **Request:**
+
 ```json
 {
   "firstName": "John",
@@ -221,6 +230,7 @@ Update user profile.
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -234,13 +244,15 @@ Update user profile.
 
 Upload/update profile avatar.
 
-**Headers:** 
+**Headers:**
+
 - `Authorization: Bearer <token>`
 - `Content-Type: multipart/form-data`
 
 **Request:** FormData with `avatar` file field
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -276,6 +288,7 @@ List all available properties with filters.
 | limit | number | Items per page (default: 12) |
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -349,6 +362,7 @@ List all available properties with filters.
 Get single property details.
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -368,6 +382,7 @@ Get featured properties for homepage.
 | limit | number | Number of properties (default: 6) |
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -384,6 +399,7 @@ Create a new property (landlord only).
 **Headers:** `Authorization: Bearer <token>`
 
 **Request:**
+
 ```json
 {
   "title": "Modern Downtown Apartment",
@@ -416,6 +432,7 @@ Create a new property (landlord only).
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -434,6 +451,7 @@ Update a property (landlord only).
 **Request:** Same as POST /properties (partial update allowed)
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -450,6 +468,7 @@ Delete a property (landlord only).
 **Headers:** `Authorization: Bearer <token>`
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -466,6 +485,7 @@ Get all properties owned by current landlord.
 **Headers:** `Authorization: Bearer <token>`
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -484,6 +504,7 @@ Get user's saved/favorite properties.
 **Headers:** `Authorization: Bearer <token>`
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -500,6 +521,7 @@ Save a property to favorites.
 **Headers:** `Authorization: Bearer <token>`
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -516,6 +538,7 @@ Remove a property from favorites.
 **Headers:** `Authorization: Bearer <token>`
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -532,6 +555,7 @@ Check if a property is saved.
 **Headers:** `Authorization: Bearer <token>`
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -552,6 +576,7 @@ Get current user's applications (tenant).
 **Headers:** `Authorization: Bearer <token>`
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -588,6 +613,7 @@ Submit a new application.
 **Headers:** `Authorization: Bearer <token>`
 
 **Request:**
+
 ```json
 {
   "propertyId": "uuid",
@@ -597,6 +623,7 @@ Submit a new application.
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -613,6 +640,7 @@ Withdraw an application (tenant).
 **Headers:** `Authorization: Bearer <token>`
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -629,6 +657,7 @@ Check if user has applied to a property.
 **Headers:** `Authorization: Bearer <token>`
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -655,6 +684,7 @@ Get all applications for landlord's properties.
 | status | string | Filter by status |
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -691,6 +721,7 @@ Update application status (landlord).
 **Headers:** `Authorization: Bearer <token>`
 
 **Request:**
+
 ```json
 {
   "status": "under_review" | "approved" | "rejected",
@@ -699,6 +730,7 @@ Update application status (landlord).
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -717,6 +749,7 @@ Get current user's leases (tenant or landlord).
 **Headers:** `Authorization: Bearer <token>`
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -777,6 +810,7 @@ Create a new lease agreement (landlord).
 **Headers:** `Authorization: Bearer <token>`
 
 **Request:**
+
 ```json
 {
   "applicationId": "uuid",
@@ -797,6 +831,7 @@ Create a new lease agreement (landlord).
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -813,6 +848,7 @@ Send lease to tenant for review.
 **Headers:** `Authorization: Bearer <token>`
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -829,6 +865,7 @@ Accept a lease (tenant).
 **Headers:** `Authorization: Bearer <token>`
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -845,6 +882,7 @@ Reject a lease (tenant).
 **Headers:** `Authorization: Bearer <token>`
 
 **Request:**
+
 ```json
 {
   "reason": "The terms don't work for me..."
@@ -852,6 +890,7 @@ Reject a lease (tenant).
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -868,6 +907,7 @@ Process payment for lease (tenant).
 **Headers:** `Authorization: Bearer <token>`
 
 **Request:**
+
 ```json
 {
   "paymentMethod": "card" | "bank_transfer",
@@ -876,11 +916,12 @@ Process payment for lease (tenant).
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
-  "data": { 
-    /* lease with status: "active", paymentStatus: "paid" */ 
+  "data": {
+    /* lease with status: "active", paymentStatus: "paid" */
   }
 }
 ```
@@ -896,6 +937,7 @@ Get all conversations for current user.
 **Headers:** `Authorization: Bearer <token>`
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -935,6 +977,7 @@ Get single conversation with messages.
 **Headers:** `Authorization: Bearer <token>`
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -967,6 +1010,7 @@ Create a new conversation.
 **Headers:** `Authorization: Bearer <token>`
 
 **Request:**
+
 ```json
 {
   "recipientId": "uuid",
@@ -976,6 +1020,7 @@ Create a new conversation.
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -992,6 +1037,7 @@ Send a message in a conversation.
 **Headers:** `Authorization: Bearer <token>`
 
 **Request:**
+
 ```json
 {
   "content": "Thank you for your response!"
@@ -999,6 +1045,7 @@ Send a message in a conversation.
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -1015,6 +1062,7 @@ Get or check conversation for a specific property.
 **Headers:** `Authorization: Bearer <token>`
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -1044,6 +1092,7 @@ Get all notifications for current user.
 | limit | number | Items per page |
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -1074,6 +1123,7 @@ Mark a notification as read.
 **Headers:** `Authorization: Bearer <token>`
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -1090,6 +1140,7 @@ Mark all notifications as read.
 **Headers:** `Authorization: Bearer <token>`
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -1106,6 +1157,7 @@ Delete a notification.
 **Headers:** `Authorization: Bearer <token>`
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -1122,6 +1174,7 @@ Get count of unread notifications.
 **Headers:** `Authorization: Bearer <token>`
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -1142,6 +1195,7 @@ Get maintenance requests (tenant or landlord view).
 **Headers:** `Authorization: Bearer <token>`
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -1188,6 +1242,7 @@ Create a maintenance request (tenant).
 **Headers:** `Authorization: Bearer <token>`
 
 **Request:**
+
 ```json
 {
   "rentalId": "uuid",
@@ -1200,6 +1255,7 @@ Create a maintenance request (tenant).
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -1216,6 +1272,7 @@ Update maintenance request status (landlord).
 **Headers:** `Authorization: Bearer <token>`
 
 **Request:**
+
 ```json
 {
   "status": "accepted" | "rejected" | "in_progress" | "scheduled" | "completed",
@@ -1226,6 +1283,7 @@ Update maintenance request status (landlord).
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -1244,6 +1302,7 @@ Get payment history (tenant).
 **Headers:** `Authorization: Bearer <token>`
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -1273,6 +1332,7 @@ Process a payment.
 **Headers:** `Authorization: Bearer <token>`
 
 **Request:**
+
 ```json
 {
   "paymentMethod": "card" | "bank_transfer",
@@ -1281,6 +1341,7 @@ Process a payment.
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -1308,6 +1369,7 @@ Get user's documents.
 | propertyId | string | Filter by property |
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -1333,16 +1395,19 @@ Get user's documents.
 
 Upload a document.
 
-**Headers:** 
+**Headers:**
+
 - `Authorization: Bearer <token>`
 - `Content-Type: multipart/form-data`
 
 **Request:** FormData with:
+
 - `file`: The document file
 - `type`: Document type (lease, receipt, maintenance, other)
 - `propertyId`: Optional property association
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -1359,6 +1424,7 @@ Delete a document.
 **Headers:** `Authorization: Bearer <token>`
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -1377,6 +1443,7 @@ Get managers for a property (landlord only).
 **Headers:** `Authorization: Bearer <token>`
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -1404,6 +1471,7 @@ Add a manager to a property (landlord only).
 **Headers:** `Authorization: Bearer <token>`
 
 **Request:**
+
 ```json
 {
   "email": "manager@example.com",
@@ -1412,6 +1480,7 @@ Add a manager to a property (landlord only).
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -1428,6 +1497,7 @@ Remove a manager from a property (landlord only).
 **Headers:** `Authorization: Bearer <token>`
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -1446,6 +1516,7 @@ Get properties managed by current user.
 **Headers:** `Authorization: Bearer <token>`
 
 **Response:**
+
 ```json
 {
   "success": true,
