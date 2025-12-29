@@ -104,7 +104,19 @@ export interface CreatePropertyData {
   address: string;
   rentAmount: number;
   securityDeposit?: number;
-  roomAmount: number;
+  type?: 'APARTMENT' | 'HOUSE' | 'STUDIO' | 'ROOM' | 'CONDO' | 'TOWNHOUSE';
+  bedrooms?: number;
+  bathrooms?: number;
+  size?: number;
+  currency?: string;
+  furnished?: boolean;
+  petFriendly?: boolean;
+  parkingSpaces?: number;
+  amenities?: string[];
+  rules?: string[];
+  availableFrom?: string;
+  minimumLease?: number;
+  roomAmount?: number; // Legacy field
   specs?: Record<string, unknown>;
   managerId?: number;
   files?: File[];
@@ -116,8 +128,20 @@ export interface UpdatePropertyData {
   address?: string;
   rentAmount?: number;
   securityDeposit?: number;
-  roomAmount?: number;
   status?: 'AVAILABLE' | 'RENTED' | 'PENDING' | 'UNDER_MAINTENANCE';
+  type?: 'APARTMENT' | 'HOUSE' | 'STUDIO' | 'ROOM' | 'CONDO' | 'TOWNHOUSE';
+  bedrooms?: number;
+  bathrooms?: number;
+  size?: number;
+  currency?: string;
+  furnished?: boolean;
+  petFriendly?: boolean;
+  parkingSpaces?: number;
+  amenities?: string[];
+  rules?: string[];
+  availableFrom?: string;
+  minimumLease?: number;
+  roomAmount?: number;
   specs?: Record<string, unknown>;
   photos_to_add?: File[];
   photo_ids_to_delete?: number[];
@@ -226,10 +250,48 @@ export const propertyApi = {
     formData.append('description', data.description);
     formData.append('address', data.address);
     formData.append('rentAmount', String(data.rentAmount));
-    formData.append('roomAmount', String(data.roomAmount));
     
     if (data.securityDeposit !== undefined) {
       formData.append('securityDeposit', String(data.securityDeposit));
+    }
+    if (data.type) {
+      formData.append('type', data.type);
+    }
+    if (data.bedrooms !== undefined) {
+      formData.append('bedrooms', String(data.bedrooms));
+    }
+    if (data.bathrooms !== undefined) {
+      formData.append('bathrooms', String(data.bathrooms));
+    }
+    if (data.size !== undefined) {
+      formData.append('size', String(data.size));
+    }
+    if (data.currency) {
+      formData.append('currency', data.currency);
+    }
+    if (data.furnished !== undefined) {
+      formData.append('furnished', String(data.furnished));
+    }
+    if (data.petFriendly !== undefined) {
+      formData.append('petFriendly', String(data.petFriendly));
+    }
+    if (data.parkingSpaces !== undefined) {
+      formData.append('parkingSpaces', String(data.parkingSpaces));
+    }
+    if (data.amenities && data.amenities.length > 0) {
+      data.amenities.forEach(amenity => formData.append('amenities', amenity));
+    }
+    if (data.rules && data.rules.length > 0) {
+      data.rules.forEach(rule => formData.append('rules', rule));
+    }
+    if (data.availableFrom) {
+      formData.append('availableFrom', data.availableFrom);
+    }
+    if (data.minimumLease !== undefined) {
+      formData.append('minimumLease', String(data.minimumLease));
+    }
+    if (data.roomAmount !== undefined) {
+      formData.append('roomAmount', String(data.roomAmount));
     }
     if (data.specs) {
       formData.append('specs', JSON.stringify(data.specs));
@@ -270,8 +332,24 @@ export const propertyApi = {
     if (data.address) formData.append('address', data.address);
     if (data.rentAmount !== undefined) formData.append('rentAmount', String(data.rentAmount));
     if (data.securityDeposit !== undefined) formData.append('securityDeposit', String(data.securityDeposit));
-    if (data.roomAmount !== undefined) formData.append('roomAmount', String(data.roomAmount));
     if (data.status) formData.append('status', data.status);
+    if (data.type) formData.append('type', data.type);
+    if (data.bedrooms !== undefined) formData.append('bedrooms', String(data.bedrooms));
+    if (data.bathrooms !== undefined) formData.append('bathrooms', String(data.bathrooms));
+    if (data.size !== undefined) formData.append('size', String(data.size));
+    if (data.currency) formData.append('currency', data.currency);
+    if (data.furnished !== undefined) formData.append('furnished', String(data.furnished));
+    if (data.petFriendly !== undefined) formData.append('petFriendly', String(data.petFriendly));
+    if (data.parkingSpaces !== undefined) formData.append('parkingSpaces', String(data.parkingSpaces));
+    if (data.amenities && data.amenities.length > 0) {
+      data.amenities.forEach(amenity => formData.append('amenities', amenity));
+    }
+    if (data.rules && data.rules.length > 0) {
+      data.rules.forEach(rule => formData.append('rules', rule));
+    }
+    if (data.availableFrom) formData.append('availableFrom', data.availableFrom);
+    if (data.minimumLease !== undefined) formData.append('minimumLease', String(data.minimumLease));
+    if (data.roomAmount !== undefined) formData.append('roomAmount', String(data.roomAmount));
     if (data.specs) formData.append('specs', JSON.stringify(data.specs));
     
     if (data.photos_to_add) {
