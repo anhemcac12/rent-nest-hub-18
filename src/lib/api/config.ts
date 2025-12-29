@@ -14,6 +14,13 @@ export const API_ENDPOINTS = {
   // Users
   USER_PUBLIC_PROFILE: (userId: number) => `/api/users/${userId}`,
   USER_ME: "/api/users/me",
+
+  // Files
+  FILES_UPLOAD: "/api/files/upload",
+  FILES_DELETE: (documentId: number) => `/api/files/${documentId}`,
+
+  // Documents
+  DOCUMENTS_SIGNED_URL: (documentId: number) => `/api/documents/${documentId}/signed-url`,
 } as const;
 
 // Token storage keys
