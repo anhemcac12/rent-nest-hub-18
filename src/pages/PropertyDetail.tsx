@@ -49,28 +49,23 @@ export default function PropertyDetail() {
     fetchProperty();
   }, [id]);
 
-  // Fetch related properties based on city and type
+  // Fetch related properties based on type
   useEffect(() => {
     const fetchRelatedProperties = async () => {
       if (!property) return;
       
       setIsLoadingRelated(true);
       try {
-        // Extract city from address (assuming format like "123 Street, City, State")
-        const addressParts = property.address?.split(',') || [];
-        const city = addressParts.length > 1 ? addressParts[1]?.trim() : undefined;
-        
         const response = await propertyApi.searchProperties({
-          city: city,
           type: property.type,
-          size: 4, // Get 4 to have extras in case current property is included
+          size: 5, // Get 5 to have extras in case current property is included
           page: 0
         });
         
-        // Filter out current property and limit to 3
+        // Filter out current property and limit to 4
         const filtered = response.content
           .filter(p => p.id !== property.id)
-          .slice(0, 3);
+          .slice(0, 4);
         
         setRelatedProperties(filtered);
       } catch (error) {
