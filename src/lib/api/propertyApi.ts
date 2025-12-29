@@ -89,10 +89,20 @@ export interface PaginatedResponse<T> {
 
 export interface PropertySearchParams {
   search?: string;
+  type?: string;
   minRent?: number;
   maxRent?: number;
-  minRooms?: number;
-  maxRooms?: number;
+  minBedrooms?: number;
+  maxBedrooms?: number;
+  minBathrooms?: number;
+  maxBathrooms?: number;
+  minSize?: number;
+  maxSize?: number;
+  furnished?: boolean;
+  petFriendly?: boolean;
+  amenities?: string;
+  city?: string;
+  availableFrom?: string;
   page?: number;
   size?: number;
   sort?: string;
@@ -153,10 +163,20 @@ function buildQueryString(params: PropertySearchParams): string {
   const searchParams = new URLSearchParams();
   
   if (params.search) searchParams.append('search', params.search);
+  if (params.type) searchParams.append('type', params.type);
   if (params.minRent !== undefined) searchParams.append('minRent', String(params.minRent));
   if (params.maxRent !== undefined) searchParams.append('maxRent', String(params.maxRent));
-  if (params.minRooms !== undefined) searchParams.append('minRooms', String(params.minRooms));
-  if (params.maxRooms !== undefined) searchParams.append('maxRooms', String(params.maxRooms));
+  if (params.minBedrooms !== undefined) searchParams.append('minBedrooms', String(params.minBedrooms));
+  if (params.maxBedrooms !== undefined) searchParams.append('maxBedrooms', String(params.maxBedrooms));
+  if (params.minBathrooms !== undefined) searchParams.append('minBathrooms', String(params.minBathrooms));
+  if (params.maxBathrooms !== undefined) searchParams.append('maxBathrooms', String(params.maxBathrooms));
+  if (params.minSize !== undefined) searchParams.append('minSize', String(params.minSize));
+  if (params.maxSize !== undefined) searchParams.append('maxSize', String(params.maxSize));
+  if (params.furnished !== undefined) searchParams.append('furnished', String(params.furnished));
+  if (params.petFriendly !== undefined) searchParams.append('petFriendly', String(params.petFriendly));
+  if (params.amenities) searchParams.append('amenities', params.amenities);
+  if (params.city) searchParams.append('city', params.city);
+  if (params.availableFrom) searchParams.append('availableFrom', params.availableFrom);
   if (params.page !== undefined) searchParams.append('page', String(params.page));
   if (params.size !== undefined) searchParams.append('size', String(params.size));
   if (params.sort) searchParams.append('sort', params.sort);
