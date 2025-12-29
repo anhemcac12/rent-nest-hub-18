@@ -159,6 +159,8 @@ export default function PropertyDetail() {
                   src={images[currentImageIndex]} 
                   alt={property.title}
                   className="w-full h-full object-cover"
+                  loading="eager"
+                  decoding="async"
                 />
                 {images.length > 1 && (
                   <>
@@ -196,16 +198,22 @@ export default function PropertyDetail() {
                 </div>
               </div>
 
-              {/* Thumbnails */}
+              {/* Thumbnails with lazy loading */}
               {images.length > 1 && (
                 <div className="flex gap-2 overflow-x-auto pb-2">
                   {images.map((img, index) => (
                     <button
                       key={index}
                       onClick={() => setCurrentImageIndex(index)}
-                      className={cn('shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 transition-colors', index === currentImageIndex ? 'border-primary' : 'border-transparent')}
+                      className={cn('shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 transition-colors bg-muted', index === currentImageIndex ? 'border-primary' : 'border-transparent')}
                     >
-                      <img src={img} alt="" className="w-full h-full object-cover" />
+                      <img 
+                        src={img} 
+                        alt="" 
+                        className="w-full h-full object-cover" 
+                        loading="lazy"
+                        decoding="async"
+                      />
                     </button>
                   ))}
                 </div>

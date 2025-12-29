@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, Upload, Image as ImageIcon, Loader2 } from 'lucide-react';
+import { X, Upload, Image as ImageIcon, Loader2, Plus } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -20,6 +20,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Switch } from '@/components/ui/switch';
+import { Badge } from '@/components/ui/badge';
 import { PROPERTY_TYPES, AMENITIES } from '@/types/property';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -32,25 +34,56 @@ interface PropertyFormModalProps {
   onSave: () => void;
 }
 
+interface FormData {
+  title: string;
+  description: string;
+  address: string;
+  rentAmount: string;
+  securityDeposit: string;
+  type: string;
+  bedrooms: string;
+  bathrooms: string;
+  size: string;
+  currency: string;
+  furnished: boolean;
+  petFriendly: boolean;
+  parkingSpaces: string;
+  amenities: string[];
+  rules: string[];
+  availableFrom: string;
+  minimumLease: string;
+}
+
+const initialFormData: FormData = {
+  title: '',
+  description: '',
+  address: '',
+  rentAmount: '',
+  securityDeposit: '',
+  type: 'APARTMENT',
+  bedrooms: '1',
+  bathrooms: '1',
+  size: '500',
+  currency: 'USD',
+  furnished: false,
+  petFriendly: false,
+  parkingSpaces: '0',
+  amenities: [],
+  rules: [],
+  availableFrom: '',
+  minimumLease: '12',
+};
+
 export function PropertyFormModal({ open, onClose, propertyId, onSave }: PropertyFormModalProps) {
   const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [property, setProperty] = useState<PropertyResponseDTO | null>(null);
-  
-  const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    address: '',
-    rentAmount: '',
-    securityDeposit: '',
-    roomAmount: '',
-    specs: {} as Record<string, unknown>,
-  });
-  
+  const [formData, setFormData] = useState<FormData>(initialFormData);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
+  const [newRule, setNewRule] = useState('');
 
   // Fetch property data if editing
   useEffect(() => {
@@ -71,8 +104,18 @@ export function PropertyFormModal({ open, onClose, propertyId, onSave }: Propert
           address: data.address,
           rentAmount: String(data.rentAmount),
           securityDeposit: data.securityDeposit ? String(data.securityDeposit) : '',
-          roomAmount: String(data.bedrooms + 1), // Total rooms approximation
-          specs: {},
+          type: data.type || 'APARTMENT',
+          bedrooms: String(data.bedrooms || 1),
+          bathrooms: String(data.bathrooms || 1),
+          size: String(data.size || 500),
+          currency: data.currency || 'USD',
+          furnished: data.furnished || false,
+          petFriendly: data.petFriendly || false,
+          parkingSpaces: String(data.parkingSpaces || 0),
+          amenities: data.amenities || [],
+          rules: data.rules || [],
+          availableFrom: data.availableFrom || '',
+          minimumLease: String(data.minimumLease || 12),
         });
         // Set existing images as previews
         if (data.photos) {
@@ -92,17 +135,10 @@ export function PropertyFormModal({ open, onClose, propertyId, onSave }: Propert
   }, [propertyId, open]);
 
   const resetForm = () => {
-    setFormData({
-      title: '',
-      description: '',
-      address: '',
-      rentAmount: '',
-      securityDeposit: '',
-      roomAmount: '',
-      specs: {},
-    });
+    setFormData(initialFormData);
     setSelectedFiles([]);
     setPreviewUrls([]);
+    setNewRule('');
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -127,6 +163,32 @@ export function PropertyFormModal({ open, onClose, propertyId, onSave }: Propert
     setPreviewUrls(prev => prev.filter((_, i) => i !== index));
   };
 
+  const toggleAmenity = (amenity: string) => {
+    setFormData(prev => ({
+      ...prev,
+      amenities: prev.amenities.includes(amenity)
+        ? prev.amenities.filter(a => a !== amenity)
+        : [...prev.amenities, amenity]
+    }));
+  };
+
+  const addRule = () => {
+    if (newRule.trim()) {
+      setFormData(prev => ({
+        ...prev,
+        rules: [...prev.rules, newRule.trim()]
+      }));
+      setNewRule('');
+    }
+  };
+
+  const removeRule = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      rules: prev.rules.filter((_, i) => i !== index)
+    }));
+  };
+
   const handleSubmit = async () => {
     if (!user) return;
 
@@ -145,7 +207,18 @@ export function PropertyFormModal({ open, onClose, propertyId, onSave }: Propert
           address: formData.address,
           rentAmount: parseFloat(formData.rentAmount),
           securityDeposit: formData.securityDeposit ? parseFloat(formData.securityDeposit) : undefined,
-          roomAmount: parseInt(formData.roomAmount) || undefined,
+          type: formData.type as 'APARTMENT' | 'HOUSE' | 'STUDIO' | 'ROOM' | 'CONDO' | 'TOWNHOUSE',
+          bedrooms: parseInt(formData.bedrooms) || 1,
+          bathrooms: parseInt(formData.bathrooms) || 1,
+          size: parseInt(formData.size) || 500,
+          currency: formData.currency,
+          furnished: formData.furnished,
+          petFriendly: formData.petFriendly,
+          parkingSpaces: parseInt(formData.parkingSpaces) || 0,
+          amenities: formData.amenities,
+          rules: formData.rules,
+          availableFrom: formData.availableFrom || undefined,
+          minimumLease: parseInt(formData.minimumLease) || 12,
           photos_to_add: selectedFiles.length > 0 ? selectedFiles : undefined,
         });
         toast.success('Property updated successfully');
@@ -157,7 +230,18 @@ export function PropertyFormModal({ open, onClose, propertyId, onSave }: Propert
           address: formData.address,
           rentAmount: parseFloat(formData.rentAmount),
           securityDeposit: formData.securityDeposit ? parseFloat(formData.securityDeposit) : undefined,
-          roomAmount: parseInt(formData.roomAmount) || 1,
+          type: formData.type as 'APARTMENT' | 'HOUSE' | 'STUDIO' | 'ROOM' | 'CONDO' | 'TOWNHOUSE',
+          bedrooms: parseInt(formData.bedrooms) || 1,
+          bathrooms: parseInt(formData.bathrooms) || 1,
+          size: parseInt(formData.size) || 500,
+          currency: formData.currency,
+          furnished: formData.furnished,
+          petFriendly: formData.petFriendly,
+          parkingSpaces: parseInt(formData.parkingSpaces) || 0,
+          amenities: formData.amenities,
+          rules: formData.rules,
+          availableFrom: formData.availableFrom || undefined,
+          minimumLease: parseInt(formData.minimumLease) || 12,
           files: selectedFiles.length > 0 ? selectedFiles : undefined,
         });
         toast.success('Property created successfully');
@@ -176,7 +260,7 @@ export function PropertyFormModal({ open, onClose, propertyId, onSave }: Propert
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{propertyId ? 'Edit Property' : 'Add New Property'}</DialogTitle>
           <DialogDescription>
@@ -192,7 +276,7 @@ export function PropertyFormModal({ open, onClose, propertyId, onSave }: Propert
           <div className="space-y-6 py-4">
             {/* Basic Info */}
             <div className="space-y-4">
-              <h3 className="font-semibold">Basic Information</h3>
+              <h3 className="font-semibold text-foreground">Basic Information</h3>
               <div className="grid gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="title">Property Title *</Label>
@@ -222,44 +306,198 @@ export function PropertyFormModal({ open, onClose, propertyId, onSave }: Propert
                     placeholder="123 Main St, San Francisco, CA 94102"
                   />
                 </div>
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="rentAmount">Monthly Rent ($) *</Label>
-                    <Input
-                      id="rentAmount"
-                      type="number"
-                      value={formData.rentAmount}
-                      onChange={(e) => setFormData(prev => ({ ...prev, rentAmount: e.target.value }))}
-                      placeholder="2000"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="securityDeposit">Security Deposit ($)</Label>
-                    <Input
-                      id="securityDeposit"
-                      type="number"
-                      value={formData.securityDeposit}
-                      onChange={(e) => setFormData(prev => ({ ...prev, securityDeposit: e.target.value }))}
-                      placeholder="1000"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="roomAmount">Number of Rooms</Label>
-                    <Input
-                      id="roomAmount"
-                      type="number"
-                      value={formData.roomAmount}
-                      onChange={(e) => setFormData(prev => ({ ...prev, roomAmount: e.target.value }))}
-                      placeholder="3"
-                    />
-                  </div>
+              </div>
+            </div>
+
+            {/* Property Details */}
+            <div className="space-y-4">
+              <h3 className="font-semibold text-foreground">Property Details</h3>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label>Property Type</Label>
+                  <Select value={formData.type} onValueChange={(value) => setFormData(prev => ({ ...prev, type: value }))}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PROPERTY_TYPES.map(type => (
+                        <SelectItem key={type.value} value={type.value.toUpperCase()}>
+                          {type.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="bedrooms">Bedrooms</Label>
+                  <Input
+                    id="bedrooms"
+                    type="number"
+                    min="0"
+                    value={formData.bedrooms}
+                    onChange={(e) => setFormData(prev => ({ ...prev, bedrooms: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="bathrooms">Bathrooms</Label>
+                  <Input
+                    id="bathrooms"
+                    type="number"
+                    min="1"
+                    value={formData.bathrooms}
+                    onChange={(e) => setFormData(prev => ({ ...prev, bathrooms: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="size">Size (sqft)</Label>
+                  <Input
+                    id="size"
+                    type="number"
+                    min="0"
+                    value={formData.size}
+                    onChange={(e) => setFormData(prev => ({ ...prev, size: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="parkingSpaces">Parking Spaces</Label>
+                  <Input
+                    id="parkingSpaces"
+                    type="number"
+                    min="0"
+                    value={formData.parkingSpaces}
+                    onChange={(e) => setFormData(prev => ({ ...prev, parkingSpaces: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Currency</Label>
+                  <Select value={formData.currency} onValueChange={(value) => setFormData(prev => ({ ...prev, currency: value }))}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="USD">USD</SelectItem>
+                      <SelectItem value="VND">VND</SelectItem>
+                      <SelectItem value="EUR">EUR</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              
+              {/* Toggles */}
+              <div className="flex flex-wrap gap-6 pt-2">
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="furnished"
+                    checked={formData.furnished}
+                    onCheckedChange={(checked) => setFormData(prev => ({ ...prev, furnished: checked }))}
+                  />
+                  <Label htmlFor="furnished">Furnished</Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="petFriendly"
+                    checked={formData.petFriendly}
+                    onCheckedChange={(checked) => setFormData(prev => ({ ...prev, petFriendly: checked }))}
+                  />
+                  <Label htmlFor="petFriendly">Pet Friendly</Label>
                 </div>
               </div>
             </div>
 
+            {/* Pricing */}
+            <div className="space-y-4">
+              <h3 className="font-semibold text-foreground">Pricing & Lease</h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="rentAmount">Monthly Rent *</Label>
+                  <Input
+                    id="rentAmount"
+                    type="number"
+                    value={formData.rentAmount}
+                    onChange={(e) => setFormData(prev => ({ ...prev, rentAmount: e.target.value }))}
+                    placeholder="2000"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="securityDeposit">Security Deposit</Label>
+                  <Input
+                    id="securityDeposit"
+                    type="number"
+                    value={formData.securityDeposit}
+                    onChange={(e) => setFormData(prev => ({ ...prev, securityDeposit: e.target.value }))}
+                    placeholder="1000"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="availableFrom">Available From</Label>
+                  <Input
+                    id="availableFrom"
+                    type="date"
+                    value={formData.availableFrom}
+                    onChange={(e) => setFormData(prev => ({ ...prev, availableFrom: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="minimumLease">Min Lease (months)</Label>
+                  <Input
+                    id="minimumLease"
+                    type="number"
+                    min="1"
+                    value={formData.minimumLease}
+                    onChange={(e) => setFormData(prev => ({ ...prev, minimumLease: e.target.value }))}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Amenities */}
+            <div className="space-y-4">
+              <h3 className="font-semibold text-foreground">Amenities</h3>
+              <div className="flex flex-wrap gap-2">
+                {AMENITIES.map(amenity => (
+                  <Badge
+                    key={amenity}
+                    variant={formData.amenities.includes(amenity) ? "default" : "outline"}
+                    className="cursor-pointer transition-colors"
+                    onClick={() => toggleAmenity(amenity)}
+                  >
+                    {amenity}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+
+            {/* House Rules */}
+            <div className="space-y-4">
+              <h3 className="font-semibold text-foreground">House Rules</h3>
+              <div className="flex gap-2">
+                <Input
+                  value={newRule}
+                  onChange={(e) => setNewRule(e.target.value)}
+                  placeholder="Add a house rule..."
+                  onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addRule())}
+                />
+                <Button type="button" variant="outline" onClick={addRule}>
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+              {formData.rules.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {formData.rules.map((rule, index) => (
+                    <Badge key={index} variant="secondary" className="gap-1">
+                      {rule}
+                      <button onClick={() => removeRule(index)} className="ml-1 hover:text-destructive">
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {/* Images */}
             <div className="space-y-4">
-              <h3 className="font-semibold">Property Images</h3>
+              <h3 className="font-semibold text-foreground">Property Images</h3>
               <div className="space-y-4">
                 <input
                   ref={fileInputRef}
@@ -295,6 +533,11 @@ export function PropertyFormModal({ open, onClose, propertyId, onSave }: Propert
                         >
                           <X className="h-3 w-3" />
                         </button>
+                        {index === 0 && (
+                          <span className="absolute bottom-1 left-1 text-xs bg-primary text-primary-foreground px-1.5 py-0.5 rounded">
+                            Cover
+                          </span>
+                        )}
                       </div>
                     ))}
                   </div>

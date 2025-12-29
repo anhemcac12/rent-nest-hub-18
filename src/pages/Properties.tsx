@@ -323,11 +323,13 @@ export default function Properties() {
                   {properties.map(property => (
                     <Card key={property.id} className={cn('overflow-hidden card-hover', viewMode === 'list' && 'flex flex-row')}>
                       <Link to={`/properties/${property.id}`} className={cn('block', viewMode === 'list' && 'flex')}>
-                        <div className={cn('relative overflow-hidden', viewMode === 'grid' ? 'aspect-[4/3]' : 'w-64 h-48 shrink-0')}>
+                        <div className={cn('relative overflow-hidden bg-muted', viewMode === 'grid' ? 'aspect-[4/3]' : 'w-64 h-48 shrink-0')}>
                           <img 
                             src={property.coverImageUrl || '/placeholder.svg'} 
                             alt={property.title} 
-                            className="object-cover w-full h-full hover:scale-105 transition-transform duration-300" 
+                            className="object-cover w-full h-full hover:scale-105 transition-transform duration-300"
+                            loading="lazy"
+                            decoding="async"
                           />
                           {property.featured && <span className="absolute top-3 left-3 badge-featured">Featured</span>}
                           {property.isNew && <span className="absolute top-3 left-3 badge-new">New</span>}

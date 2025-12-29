@@ -160,14 +160,16 @@ export default function Index() {
               </div>
             ) : (
               <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                {featuredProperties.map((property) => (
+                  {featuredProperties.map((property) => (
                   <Link key={property.id} to={`/properties/${property.id}`} className="group">
                     <Card className="overflow-hidden card-hover">
-                      <div className="relative aspect-[4/3] overflow-hidden">
+                      <div className="relative aspect-[4/3] overflow-hidden bg-muted">
                         <img 
                           src={property.coverImageUrl || '/placeholder.svg'} 
                           alt={property.title}
                           className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-300"
+                          loading="lazy"
+                          decoding="async"
                         />
                         {property.featured && (
                           <span className="absolute top-3 left-3 badge-featured">Featured</span>
