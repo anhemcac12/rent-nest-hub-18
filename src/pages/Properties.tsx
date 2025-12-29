@@ -261,7 +261,7 @@ export default function Properties() {
     }));
   };
 
-  const FiltersContent = () => (
+  const filtersContent = (
     <div className="space-y-6">
       {/* Property Type */}
       <div className="space-y-3">
@@ -572,7 +572,7 @@ export default function Properties() {
                     <SheetTitle>Filters</SheetTitle>
                   </SheetHeader>
                   <div className="mt-6">
-                    <FiltersContent />
+              {filtersContent}
                   </div>
                 </SheetContent>
               </Sheet>
@@ -584,7 +584,7 @@ export default function Properties() {
             <aside className="hidden md:block w-80 shrink-0">
               <div className="sticky top-24 bg-card border border-border rounded-xl p-6 max-h-[calc(100vh-8rem)] overflow-y-auto">
                 <h2 className="font-semibold text-foreground mb-6">Filters</h2>
-                <FiltersContent />
+                {filtersContent}
               </div>
             </aside>
 
