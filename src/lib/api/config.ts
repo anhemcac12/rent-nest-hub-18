@@ -1,6 +1,6 @@
 // API Configuration
 // Change this URL when your ngrok link changes
-export const API_BASE_URL = "https://87f431ead12d.ngrok-free.app";
+export const API_BASE_URL = "http://localhost:8081";
 
 export const API_ENDPOINTS = {
   // Auth
