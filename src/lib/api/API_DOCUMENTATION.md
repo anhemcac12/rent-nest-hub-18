@@ -1524,20 +1524,22 @@ Get maintenance requests for managed properties.
 
 Use this checklist to track which APIs are ready:
 
-- [ ] POST /auth/login
-- [ ] POST /auth/register
-- [ ] POST /auth/logout
-- [ ] GET /auth/me
-- [ ] GET /profile
-- [ ] PUT /profile
-- [ ] PUT /profile/avatar
-- [ ] GET /properties
-- [ ] GET /properties/:id
-- [ ] GET /properties/featured
-- [ ] POST /properties
-- [ ] PUT /properties/:id
-- [ ] DELETE /properties/:id
-- [ ] GET /landlord/properties
+- [x] POST /auth/login
+- [x] POST /auth/register
+- [x] POST /auth/logout
+- [x] GET /auth/me
+- [x] GET /profile
+- [x] PUT /profile
+- [x] PUT /profile/avatar (via POST /files/upload with USER_AVATAR category)
+- [x] GET /properties
+- [x] GET /properties/:id
+- [x] GET /properties/featured
+- [x] POST /properties
+- [x] PUT /properties/:id
+- [x] DELETE /properties/:id
+- [x] GET /landlord/properties (via GET /properties/landlord/:landlordId)
+- [x] PUT /properties/:id/manager (assign manager)
+- [x] DELETE /properties/:id/manager (remove manager)
 - [ ] GET /saved-properties
 - [ ] POST /saved-properties/:propertyId
 - [ ] DELETE /saved-properties/:propertyId

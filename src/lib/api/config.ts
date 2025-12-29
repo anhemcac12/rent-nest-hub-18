@@ -14,6 +14,7 @@ export const API_ENDPOINTS = {
   // Users
   USER_PUBLIC_PROFILE: (userId: number) => `/api/users/${userId}`,
   USER_ME: "/api/users/me",
+  USER_UNLINK_ID_DOCUMENT: "/api/users/me/identity-document",
 
   // Files
   FILES_UPLOAD: "/api/files/upload",
@@ -21,6 +22,13 @@ export const API_ENDPOINTS = {
 
   // Documents
   DOCUMENTS_SIGNED_URL: (documentId: number) => `/api/documents/${documentId}/signed-url`,
+
+  // Properties
+  PROPERTIES: "/api/properties",
+  PROPERTY_DETAIL: (propertyId: number) => `/api/properties/${propertyId}`,
+  PROPERTIES_FEATURED: "/api/properties/featured",
+  PROPERTIES_BY_LANDLORD: (landlordId: number) => `/api/properties/landlord/${landlordId}`,
+  PROPERTY_MANAGER: (propertyId: number) => `/api/properties/${propertyId}/manager`,
 } as const;
 
 // Token storage keys
