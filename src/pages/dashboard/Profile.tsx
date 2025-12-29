@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import {
   User,
   Mail,
@@ -10,6 +10,7 @@ import {
   Lock,
   Camera,
   Save,
+  Loader2,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -39,10 +40,17 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { fileApi } from '@/lib/api/fileApi';
+import { userApi } from '@/lib/api/userApi';
 
 export default function Profile() {
   const { user, logout } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState(user?.avatar || null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
   const [formData, setFormData] = useState({
     fullName: user?.fullName || '',
     email: user?.email || '',
@@ -62,13 +70,56 @@ export default function Profile() {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleSave = () => {
-    toast.success('Profile updated successfully');
-    setIsEditing(false);
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      await userApi.updateProfile({
+        fullName: formData.fullName,
+        phoneNumber: formData.phone,
+      });
+      toast.success('Profile updated successfully');
+      setIsEditing(false);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to update profile');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const handleAvatarChange = () => {
-    toast.info('Avatar upload would be handled here');
+  const handleAvatarClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleAvatarChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image size must be less than 5MB');
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      const response = await fileApi.uploadAvatar(file);
+      setAvatarUrl(response.url);
+      toast.success('Avatar updated successfully');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to upload avatar');
+    } finally {
+      setIsUploading(false);
+      // Reset the input so the same file can be selected again
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
   };
 
   const handlePasswordChange = () => {
@@ -91,11 +142,15 @@ export default function Profile() {
         </div>
         {isEditing ? (
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setIsEditing(false)}>
+            <Button variant="outline" onClick={() => setIsEditing(false)} disabled={isSaving}>
               Cancel
             </Button>
-            <Button onClick={handleSave}>
-              <Save className="h-4 w-4 mr-2" />
+            <Button onClick={handleSave} disabled={isSaving}>
+              {isSaving ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Save className="h-4 w-4 mr-2" />
+              )}
               Save Changes
             </Button>
           </div>
@@ -120,20 +175,34 @@ export default function Profile() {
           <div className="flex items-center gap-6">
             <div className="relative">
               <Avatar className="h-24 w-24">
-                <AvatarImage src={user?.avatar} />
+                <AvatarImage src={avatarUrl || user?.avatar} />
                 <AvatarFallback className="text-2xl">
                   {user?.fullName?.split(' ').map(n => n[0]).join('').slice(0, 2)}
                 </AvatarFallback>
               </Avatar>
               {isEditing && (
-                <Button
-                  size="icon"
-                  variant="secondary"
-                  className="absolute bottom-0 right-0 h-8 w-8 rounded-full"
-                  onClick={handleAvatarChange}
-                >
-                  <Camera className="h-4 w-4" />
-                </Button>
+                <>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleAvatarChange}
+                  />
+                  <Button
+                    size="icon"
+                    variant="secondary"
+                    className="absolute bottom-0 right-0 h-8 w-8 rounded-full"
+                    onClick={handleAvatarClick}
+                    disabled={isUploading}
+                  >
+                    {isUploading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Camera className="h-4 w-4" />
+                    )}
+                  </Button>
+                </>
               )}
             </div>
             <div>
