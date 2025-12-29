@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Heart, Share2, Star, MapPin, Bed, Bath, Square, Calendar, Clock, Check, X, MessageSquare, Phone, Shield, Home, FileText, Loader2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Heart, Share2, Star, MapPin, Bed, Bath, Square, Calendar, Clock, Check, X, MessageSquare, Phone, Shield, Home, FileText, Loader2, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -12,7 +12,7 @@ import { ContactLandlordModal } from '@/components/property/ContactLandlordModal
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import { propertyApi, PropertyResponseDTO } from '@/lib/api/propertyApi';
+import { propertyApi, PropertyResponseDTO, PropertySummaryDTO } from '@/lib/api/propertyApi';
 
 export default function PropertyDetail() {
   const { id } = useParams<{ id: string }>();
@@ -26,6 +26,8 @@ export default function PropertyDetail() {
   const [showApplyModal, setShowApplyModal] = useState(false);
   const [showContactModal, setShowContactModal] = useState(false);
   const [hasApplied, setHasApplied] = useState(false);
+  const [relatedProperties, setRelatedProperties] = useState<PropertySummaryDTO[]>([]);
+  const [isLoadingRelated, setIsLoadingRelated] = useState(false);
 
   // Fetch property from API
   useEffect(() => {
@@ -46,6 +48,40 @@ export default function PropertyDetail() {
 
     fetchProperty();
   }, [id]);
+
+  // Fetch related properties based on city and type
+  useEffect(() => {
+    const fetchRelatedProperties = async () => {
+      if (!property) return;
+      
+      setIsLoadingRelated(true);
+      try {
+        // Extract city from address (assuming format like "123 Street, City, State")
+        const addressParts = property.address?.split(',') || [];
+        const city = addressParts.length > 1 ? addressParts[1]?.trim() : undefined;
+        
+        const response = await propertyApi.searchProperties({
+          city: city,
+          type: property.type,
+          size: 4, // Get 4 to have extras in case current property is included
+          page: 0
+        });
+        
+        // Filter out current property and limit to 3
+        const filtered = response.content
+          .filter(p => p.id !== property.id)
+          .slice(0, 3);
+        
+        setRelatedProperties(filtered);
+      } catch (error) {
+        console.error('Failed to fetch related properties:', error);
+      } finally {
+        setIsLoadingRelated(false);
+      }
+    };
+
+    fetchRelatedProperties();
+  }, [property]);
 
   // Load saved status from localStorage
   useEffect(() => {
@@ -373,6 +409,68 @@ export default function PropertyDetail() {
               </div>
             </div>
           </div>
+
+          {/* Related Properties */}
+          {relatedProperties.length > 0 && (
+            <div className="mt-12">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-foreground">Similar Properties</h2>
+                <Link 
+                  to={`/properties?city=${encodeURIComponent(property.address?.split(',')[1]?.trim() || '')}&type=${property.type}`}
+                  className="text-primary hover:underline flex items-center gap-1 text-sm font-medium"
+                >
+                  View all <ArrowRight className="h-4 w-4" />
+                </Link>
+              </div>
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {relatedProperties.map((relatedProperty) => (
+                  <Link 
+                    key={relatedProperty.id} 
+                    to={`/property/${relatedProperty.id}`}
+                    className="group"
+                  >
+                    <Card className="overflow-hidden hover:shadow-lg transition-shadow">
+                      <div className="aspect-[4/3] relative bg-muted">
+                        <img 
+                          src={relatedProperty.coverImageUrl || '/placeholder.svg'} 
+                          alt={relatedProperty.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          loading="lazy"
+                        />
+                        {relatedProperty.featured && (
+                          <span className="absolute top-2 left-2 badge-featured text-xs">Featured</span>
+                        )}
+                      </div>
+                      <CardContent className="p-4">
+                        <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-1">
+                          {relatedProperty.title}
+                        </h3>
+                        <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1 line-clamp-1">
+                          <MapPin className="h-3 w-3" />
+                          {relatedProperty.address}
+                        </p>
+                        <div className="flex items-center gap-3 text-sm text-muted-foreground mt-2">
+                          <span className="flex items-center gap-1"><Bed className="h-3 w-3" /> {relatedProperty.bedrooms}</span>
+                          <span className="flex items-center gap-1"><Bath className="h-3 w-3" /> {relatedProperty.bathrooms}</span>
+                          <span className="flex items-center gap-1"><Square className="h-3 w-3" /> {relatedProperty.size} sqft</span>
+                        </div>
+                        <div className="mt-3 pt-3 border-t">
+                          <span className="text-lg font-bold text-primary">${relatedProperty.rentAmount?.toLocaleString()}</span>
+                          <span className="text-muted-foreground text-sm">/mo</span>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {isLoadingRelated && (
+            <div className="mt-12 flex justify-center">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          )}
         </div>
       </main>
 
