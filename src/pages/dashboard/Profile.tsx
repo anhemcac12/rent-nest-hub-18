@@ -44,7 +44,7 @@ import { fileApi } from '@/lib/api/fileApi';
 import { userApi } from '@/lib/api/userApi';
 
 export default function Profile() {
-  const { user, logout } = useAuth();
+  const { user, logout, refreshUser } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -77,6 +77,7 @@ export default function Profile() {
         fullName: formData.fullName,
         phoneNumber: formData.phone,
       });
+      await refreshUser();
       toast.success('Profile updated successfully');
       setIsEditing(false);
     } catch (error) {
@@ -110,6 +111,7 @@ export default function Profile() {
     try {
       const response = await fileApi.uploadAvatar(file);
       setAvatarUrl(response.url);
+      await refreshUser();
       toast.success('Avatar updated successfully');
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to upload avatar');
