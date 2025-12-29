@@ -1,12 +1,13 @@
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, MapPin, Home, Shield, Clock, Users, Star, ArrowRight, Check, ChevronDown, Building, Key, MessageSquare } from 'lucide-react';
+import { Search, MapPin, Home, Shield, Clock, Users, Star, ArrowRight, Check, ChevronDown, Building, Key, MessageSquare, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
-import { mockProperties, getFeaturedProperties } from '@/data/mockProperties';
+import { propertyApi, PropertySummaryDTO } from '@/lib/api/propertyApi';
 
 const stats = [
   { value: '10,000+', label: 'Active Properties' },
@@ -44,7 +45,25 @@ const faqs = [
 ];
 
 export default function Index() {
-  const featuredProperties = getFeaturedProperties().slice(0, 4);
+  const [featuredProperties, setFeaturedProperties] = useState<PropertySummaryDTO[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchFeaturedProperties = async () => {
+      try {
+        const data = await propertyApi.getFeaturedProperties();
+        setFeaturedProperties(data.slice(0, 4));
+      } catch (error) {
+        console.error('Failed to fetch featured properties:', error);
+        // Fallback to empty array if API fails
+        setFeaturedProperties([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchFeaturedProperties();
+  }, []);
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -128,40 +147,48 @@ export default function Index() {
               </Button>
             </div>
             
-            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {featuredProperties.map((property) => (
-                <Link key={property.id} to={`/properties/${property.id}`} className="group">
-                  <Card className="overflow-hidden card-hover">
-                    <div className="relative aspect-[4/3] overflow-hidden">
-                      <img 
-                        src={property.thumbnail} 
-                        alt={property.title}
-                        className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-300"
-                      />
-                      {property.featured && (
-                        <span className="absolute top-3 left-3 badge-featured">Featured</span>
-                      )}
-                      {property.isNew && (
-                        <span className="absolute top-3 right-3 badge-new">New</span>
-                      )}
-                    </div>
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-1 text-warning mb-2">
-                        <Star className="h-4 w-4 fill-current" />
-                        <span className="text-sm font-medium">{property.rating}</span>
-                        <span className="text-xs text-muted-foreground">({property.reviewsCount})</span>
+            {isLoading ? (
+              <div className="flex items-center justify-center py-16">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            ) : featuredProperties.length === 0 ? (
+              <div className="text-center py-16">
+                <p className="text-muted-foreground">No featured properties available at the moment.</p>
+                <Button asChild className="mt-4">
+                  <Link to="/properties">Browse All Properties</Link>
+                </Button>
+              </div>
+            ) : (
+              <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                {featuredProperties.map((property) => (
+                  <Link key={property.id} to={`/properties/${property.id}`} className="group">
+                    <Card className="overflow-hidden card-hover">
+                      <div className="relative aspect-[4/3] overflow-hidden">
+                        <img 
+                          src={property.coverImageUrl || '/placeholder.svg'} 
+                          alt={property.title}
+                          className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-300"
+                        />
+                        {property.featured && (
+                          <span className="absolute top-3 left-3 badge-featured">Featured</span>
+                        )}
+                        {property.isNew && (
+                          <span className="absolute top-3 right-3 badge-new">New</span>
+                        )}
                       </div>
-                      <h3 className="font-semibold text-foreground line-clamp-1 mb-1">{property.title}</h3>
-                      <p className="text-sm text-muted-foreground mb-3">{property.address.city}, {property.address.state}</p>
-                      <div className="flex items-center justify-between">
-                        <span className="text-lg font-bold text-primary">${property.price.toLocaleString()}<span className="text-sm font-normal text-muted-foreground">/mo</span></span>
-                        <span className="text-xs text-muted-foreground">{property.bedrooms} bed · {property.bathrooms} bath</span>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </Link>
-              ))}
-            </div>
+                      <CardContent className="p-4">
+                        <h3 className="font-semibold text-foreground line-clamp-1 mb-1">{property.title}</h3>
+                        <p className="text-sm text-muted-foreground mb-3">{property.address}</p>
+                        <div className="flex items-center justify-between">
+                          <span className="text-lg font-bold text-primary">${property.rentAmount.toLocaleString()}<span className="text-sm font-normal text-muted-foreground">/mo</span></span>
+                          <span className="text-xs text-muted-foreground">{property.bedrooms} bed · {property.bathrooms} bath</span>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                ))}
+              </div>
+            )}
           </div>
         </section>
 
