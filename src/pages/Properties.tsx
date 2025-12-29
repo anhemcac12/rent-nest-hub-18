@@ -1,6 +1,6 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Search, SlidersHorizontal, Grid3X3, List, Star, Heart, MapPin, Bed, Bath, Square, X } from 'lucide-react';
+import { Search, SlidersHorizontal, Grid3X3, List, Star, Heart, MapPin, Bed, Bath, Square, X, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -11,16 +11,20 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 import { Slider } from '@/components/ui/slider';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
-import { mockProperties } from '@/data/mockProperties';
 import { PROPERTY_TYPES, AMENITIES } from '@/types/property';
 import { useAuth } from '@/contexts/AuthContext';
-import { getSavedProperties, saveProperty, unsaveProperty } from '@/lib/mockDatabase';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { propertyApi, PropertySummaryDTO, PropertySearchParams } from '@/lib/api/propertyApi';
 
 export default function Properties() {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
+  
+  const [properties, setProperties] = useState<PropertySummaryDTO[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [totalElements, setTotalElements] = useState(0);
+  const [currentPage, setCurrentPage] = useState(0);
   
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('newest');
@@ -29,22 +33,80 @@ export default function Properties() {
   
   // Draft filter state (before applying)
   const [draftPriceRange, setDraftPriceRange] = useState([0, 6000]);
-  const [draftSelectedTypes, setDraftSelectedTypes] = useState<string[]>([]);
   const [draftSelectedBedrooms, setDraftSelectedBedrooms] = useState<string>('any');
-  const [draftSelectedAmenities, setDraftSelectedAmenities] = useState<string[]>([]);
   
   // Applied filter state
   const [appliedFilters, setAppliedFilters] = useState({
     priceRange: [0, 6000],
-    selectedTypes: [] as string[],
     selectedBedrooms: 'any',
-    selectedAmenities: [] as string[],
   });
 
-  // Load user's saved properties
+  // Fetch properties from API
+  const fetchProperties = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const params: PropertySearchParams = {
+        page: currentPage,
+        size: 12,
+      };
+      
+      // Add search
+      if (searchQuery) {
+        params.search = searchQuery;
+      }
+      
+      // Add price filters
+      if (appliedFilters.priceRange[0] > 0) {
+        params.minRent = appliedFilters.priceRange[0];
+      }
+      if (appliedFilters.priceRange[1] < 6000) {
+        params.maxRent = appliedFilters.priceRange[1];
+      }
+      
+      // Add bedrooms filter
+      if (appliedFilters.selectedBedrooms !== 'any') {
+        const beds = parseInt(appliedFilters.selectedBedrooms);
+        params.minRooms = beds;
+        if (beds < 4) {
+          params.maxRooms = beds;
+        }
+      }
+      
+      // Add sorting
+      switch (sortBy) {
+        case 'price_asc':
+          params.sort = 'rentAmount,asc';
+          break;
+        case 'price_desc':
+          params.sort = 'rentAmount,desc';
+          break;
+        case 'newest':
+          params.sort = 'createdAt,desc';
+          break;
+      }
+      
+      const response = await propertyApi.searchProperties(params);
+      setProperties(response.content);
+      setTotalElements(response.totalElements);
+    } catch (error) {
+      console.error('Failed to fetch properties:', error);
+      toast.error('Failed to load properties');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [searchQuery, appliedFilters, sortBy, currentPage]);
+
+  useEffect(() => {
+    fetchProperties();
+  }, [fetchProperties]);
+
+  // Load user's saved properties from localStorage (will integrate with API later)
   useEffect(() => {
     if (user) {
-      setFavorites(getSavedProperties(user.id));
+      const saved = localStorage.getItem(`saved_properties_${user.id}`);
+      if (saved) {
+        setFavorites(JSON.parse(saved));
+      }
     } else {
       setFavorites([]);
     }
@@ -53,57 +115,10 @@ export default function Properties() {
   const applyFilters = () => {
     setAppliedFilters({
       priceRange: draftPriceRange,
-      selectedTypes: draftSelectedTypes,
       selectedBedrooms: draftSelectedBedrooms,
-      selectedAmenities: draftSelectedAmenities,
     });
+    setCurrentPage(0);
   };
-
-  const filteredProperties = useMemo(() => {
-    let result = [...mockProperties];
-
-    // Search filter
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      result = result.filter(p => p.title.toLowerCase().includes(query) || p.address.city.toLowerCase().includes(query) || p.address.state.toLowerCase().includes(query));
-    }
-
-    // Price filter
-    result = result.filter(p => p.price >= appliedFilters.priceRange[0] && p.price <= appliedFilters.priceRange[1]);
-
-    // Type filter
-    if (appliedFilters.selectedTypes.length > 0) {
-      result = result.filter(p => appliedFilters.selectedTypes.includes(p.type));
-    }
-
-    // Bedrooms filter
-    if (appliedFilters.selectedBedrooms !== 'any') {
-      const beds = parseInt(appliedFilters.selectedBedrooms);
-      result = result.filter(p => beds === 4 ? p.bedrooms >= 4 : p.bedrooms === beds);
-    }
-
-    // Amenities filter
-    if (appliedFilters.selectedAmenities.length > 0) {
-      result = result.filter(p => appliedFilters.selectedAmenities.every(a => p.amenities.includes(a)));
-    }
-
-    // Sort
-    switch (sortBy) {
-      case 'price_asc':
-        result.sort((a, b) => a.price - b.price);
-        break;
-      case 'price_desc':
-        result.sort((a, b) => b.price - a.price);
-        break;
-      case 'rating':
-        result.sort((a, b) => b.rating - a.rating);
-        break;
-      case 'newest':
-        result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-        break;
-    }
-    return result;
-  }, [searchQuery, appliedFilters, sortBy]);
 
   const toggleFavorite = (id: string) => {
     if (!isAuthenticated || !user) {
@@ -111,47 +126,35 @@ export default function Properties() {
       return;
     }
     
+    let newFavorites: string[];
     if (favorites.includes(id)) {
-      unsaveProperty(user.id, id);
-      setFavorites(prev => prev.filter(f => f !== id));
+      newFavorites = favorites.filter(f => f !== id);
       toast.success('Removed from saved properties');
     } else {
-      saveProperty(user.id, id);
-      setFavorites(prev => [...prev, id]);
+      newFavorites = [...favorites, id];
       toast.success('Added to saved properties');
     }
-  };
-
-  const toggleType = (type: string) => {
-    setDraftSelectedTypes(prev => prev.includes(type) ? prev.filter(t => t !== type) : [...prev, type]);
-  };
-
-  const toggleAmenity = (amenity: string) => {
-    setDraftSelectedAmenities(prev => prev.includes(amenity) ? prev.filter(a => a !== amenity) : [...prev, amenity]);
+    setFavorites(newFavorites);
+    localStorage.setItem(`saved_properties_${user.id}`, JSON.stringify(newFavorites));
   };
 
   const clearFilters = () => {
     setSearchQuery('');
     setDraftPriceRange([0, 6000]);
-    setDraftSelectedTypes([]);
     setDraftSelectedBedrooms('any');
-    setDraftSelectedAmenities([]);
     setAppliedFilters({
       priceRange: [0, 6000],
-      selectedTypes: [],
       selectedBedrooms: 'any',
-      selectedAmenities: [],
     });
+    setCurrentPage(0);
   };
 
-  const hasActiveFilters = appliedFilters.priceRange[0] > 0 || appliedFilters.priceRange[1] < 6000 || appliedFilters.selectedTypes.length > 0 || appliedFilters.selectedBedrooms !== 'any' || appliedFilters.selectedAmenities.length > 0;
+  const hasActiveFilters = appliedFilters.priceRange[0] > 0 || appliedFilters.priceRange[1] < 6000 || appliedFilters.selectedBedrooms !== 'any';
   
   const hasDraftChanges = 
     draftPriceRange[0] !== appliedFilters.priceRange[0] ||
     draftPriceRange[1] !== appliedFilters.priceRange[1] ||
-    JSON.stringify(draftSelectedTypes) !== JSON.stringify(appliedFilters.selectedTypes) ||
-    draftSelectedBedrooms !== appliedFilters.selectedBedrooms ||
-    JSON.stringify(draftSelectedAmenities) !== JSON.stringify(appliedFilters.selectedAmenities);
+    draftSelectedBedrooms !== appliedFilters.selectedBedrooms;
 
   const FiltersContent = () => (
     <div className="space-y-5">
@@ -190,27 +193,6 @@ export default function Properties() {
         />
       </div>
 
-      {/* Property Type */}
-      <div className="space-y-3">
-        <Label className="text-sm font-semibold text-foreground">Property Type</Label>
-        <div className="flex flex-wrap gap-2">
-          {PROPERTY_TYPES.map(type => (
-            <button 
-              key={type.value} 
-              onClick={() => toggleType(type.value)} 
-              className={cn(
-                'px-3 py-1.5 text-xs rounded-full border transition-all',
-                draftSelectedTypes.includes(type.value) 
-                  ? 'bg-primary text-primary-foreground border-primary' 
-                  : 'border-border hover:border-primary hover:bg-primary/5'
-              )}
-            >
-              {type.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
       {/* Room Number */}
       <div className="space-y-3">
         <Label className="text-sm font-semibold text-foreground">Room Number</Label>
@@ -228,32 +210,6 @@ export default function Properties() {
             >
               {num === 'any' ? 'Any' : num === '4' ? '4+' : num}
             </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Amenities */}
-      <div className="space-y-3">
-        <Label className="text-sm font-semibold text-foreground">Amenities</Label>
-        <div className="grid grid-cols-2 gap-2">
-          {AMENITIES.slice(0, 8).map(amenity => (
-            <div 
-              key={amenity} 
-              onClick={() => toggleAmenity(amenity)}
-              className={cn(
-                'flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition-all text-xs',
-                draftSelectedAmenities.includes(amenity)
-                  ? 'bg-primary/10 border-primary text-primary'
-                  : 'border-border hover:border-primary/50'
-              )}
-            >
-              <Checkbox 
-                checked={draftSelectedAmenities.includes(amenity)} 
-                onCheckedChange={() => toggleAmenity(amenity)}
-                className="h-3.5 w-3.5"
-              />
-              <span>{amenity}</span>
-            </div>
           ))}
         </div>
       </div>
@@ -287,7 +243,13 @@ export default function Properties() {
           <div className="flex flex-col md:flex-row gap-4 mb-8">
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-              <Input placeholder="Search by city, state, or property name..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-10 h-12" />
+              <Input 
+                placeholder="Search by city, state, or property name..." 
+                value={searchQuery} 
+                onChange={e => setSearchQuery(e.target.value)} 
+                onKeyDown={e => e.key === 'Enter' && fetchProperties()}
+                className="pl-10 h-12" 
+              />
             </div>
             <div className="flex gap-3">
               <Select value={sortBy} onValueChange={setSortBy}>
@@ -298,7 +260,6 @@ export default function Properties() {
                   <SelectItem value="newest">Newest</SelectItem>
                   <SelectItem value="price_asc">Price: Low to High</SelectItem>
                   <SelectItem value="price_desc">Price: High to Low</SelectItem>
-                  <SelectItem value="rating">Highest Rated</SelectItem>
                 </SelectContent>
               </Select>
               
@@ -342,11 +303,15 @@ export default function Properties() {
             <div className="flex-1">
               <div className="flex items-center justify-between mb-6">
                 <p className="text-muted-foreground">
-                  Showing <span className="font-medium text-foreground">{filteredProperties.length}</span> properties
+                  Showing <span className="font-medium text-foreground">{properties.length}</span> of {totalElements} properties
                 </p>
               </div>
 
-              {filteredProperties.length === 0 ? (
+              {isLoading ? (
+                <div className="flex items-center justify-center py-16">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : properties.length === 0 ? (
                 <div className="text-center py-16">
                   <div className="text-6xl mb-4">🏠</div>
                   <h3 className="text-xl font-semibold text-foreground mb-2">No properties found</h3>
@@ -355,33 +320,32 @@ export default function Properties() {
                 </div>
               ) : (
                 <div className={cn(viewMode === 'grid' ? 'grid sm:grid-cols-2 lg:grid-cols-3 gap-6' : 'flex flex-col gap-4')}>
-                  {filteredProperties.map(property => (
+                  {properties.map(property => (
                     <Card key={property.id} className={cn('overflow-hidden card-hover', viewMode === 'list' && 'flex flex-row')}>
                       <Link to={`/properties/${property.id}`} className={cn('block', viewMode === 'list' && 'flex')}>
                         <div className={cn('relative overflow-hidden', viewMode === 'grid' ? 'aspect-[4/3]' : 'w-64 h-48 shrink-0')}>
-                          <img src={property.thumbnail} alt={property.title} className="object-cover w-full h-full hover:scale-105 transition-transform duration-300" />
+                          <img 
+                            src={property.coverImageUrl || '/placeholder.svg'} 
+                            alt={property.title} 
+                            className="object-cover w-full h-full hover:scale-105 transition-transform duration-300" 
+                          />
                           {property.featured && <span className="absolute top-3 left-3 badge-featured">Featured</span>}
                           {property.isNew && <span className="absolute top-3 left-3 badge-new">New</span>}
                           <button 
                             onClick={e => {
                               e.preventDefault();
-                              toggleFavorite(property.id);
+                              toggleFavorite(String(property.id));
                             }} 
-                            className={cn('absolute top-3 right-3 p-2 rounded-full bg-background/80 backdrop-blur-sm transition-colors', favorites.includes(property.id) ? 'text-destructive' : 'text-muted-foreground hover:text-destructive')}
+                            className={cn('absolute top-3 right-3 p-2 rounded-full bg-background/80 backdrop-blur-sm transition-colors', favorites.includes(String(property.id)) ? 'text-destructive' : 'text-muted-foreground hover:text-destructive')}
                           >
-                            <Heart className={cn('h-5 w-5', favorites.includes(property.id) && 'fill-current')} />
+                            <Heart className={cn('h-5 w-5', favorites.includes(String(property.id)) && 'fill-current')} />
                           </button>
                         </div>
                         <CardContent className={cn('p-4', viewMode === 'list' && 'flex-1')}>
-                          <div className="flex items-center gap-1 text-warning mb-2">
-                            <Star className="h-4 w-4 fill-current" />
-                            <span className="text-sm font-medium">{property.rating}</span>
-                            <span className="text-xs text-muted-foreground">({property.reviewsCount})</span>
-                          </div>
                           <h3 className="font-semibold text-foreground line-clamp-1 mb-1">{property.title}</h3>
                           <div className="flex items-center gap-1 text-sm text-muted-foreground mb-3">
                             <MapPin className="h-4 w-4" />
-                            {property.address.city}, {property.address.state}
+                            {property.address}
                           </div>
                           <div className="flex items-center gap-4 text-sm text-muted-foreground mb-3">
                             <span className="flex items-center gap-1"><Bed className="h-4 w-4" /> {property.bedrooms}</span>
@@ -389,7 +353,7 @@ export default function Properties() {
                             <span className="flex items-center gap-1"><Square className="h-4 w-4" /> {property.size} sqft</span>
                           </div>
                           <div className="flex items-center justify-between">
-                            <span className="text-lg font-bold text-primary">${property.price.toLocaleString()}<span className="text-sm font-normal text-muted-foreground">/mo</span></span>
+                            <span className="text-lg font-bold text-primary">${property.rentAmount.toLocaleString()}<span className="text-sm font-normal text-muted-foreground">/mo</span></span>
                             <span className="text-xs text-muted-foreground capitalize">{property.type}</span>
                           </div>
                         </CardContent>
