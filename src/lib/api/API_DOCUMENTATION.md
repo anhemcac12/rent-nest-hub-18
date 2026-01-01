@@ -135,7 +135,7 @@ Register a new user.
 
 ---
 
-### POST /auth/logout
+### POST /auth/logout (Done)
 
 Logout current user (invalidate token).
 
@@ -152,7 +152,7 @@ Logout current user (invalidate token).
 
 ---
 
-### GET /auth/me
+### GET /user/me
 
 Get current authenticated user.
 
