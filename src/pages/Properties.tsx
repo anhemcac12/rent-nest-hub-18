@@ -20,6 +20,7 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { propertyApi, PropertySummaryDTO, PropertySearchParams } from '@/lib/api/propertyApi';
+import { savedPropertiesApi } from '@/lib/api/savedPropertiesApi';
 
 const PROPERTY_TYPE_OPTIONS = [
   { value: 'APARTMENT', label: 'Apartment' },
@@ -194,39 +195,48 @@ export default function Properties() {
     fetchProperties();
   }, [fetchProperties]);
 
-  // Load user's saved properties from localStorage
+  // Load user's saved properties from API
   useEffect(() => {
-    if (user) {
-      const saved = localStorage.getItem(`saved_properties_${user.id}`);
-      if (saved) {
-        setFavorites(JSON.parse(saved));
+    const loadSavedProperties = async () => {
+      if (user && isAuthenticated) {
+        try {
+          const savedProperties = await savedPropertiesApi.getSavedProperties();
+          setFavorites(savedProperties.map(sp => String(sp.propertyId)));
+        } catch (error) {
+          console.error('Failed to load saved properties:', error);
+        }
+      } else {
+        setFavorites([]);
       }
-    } else {
-      setFavorites([]);
-    }
-  }, [user]);
+    };
+    loadSavedProperties();
+  }, [user, isAuthenticated]);
 
   const applyFilters = () => {
     setAppliedFilters({ ...draftFilters });
     setCurrentPage(0);
   };
 
-  const toggleFavorite = (id: string) => {
+  const toggleFavorite = async (id: string) => {
     if (!isAuthenticated || !user) {
       navigate('/auth');
       return;
     }
     
-    let newFavorites: string[];
-    if (favorites.includes(id)) {
-      newFavorites = favorites.filter(f => f !== id);
-      toast.success('Removed from saved properties');
-    } else {
-      newFavorites = [...favorites, id];
-      toast.success('Added to saved properties');
+    try {
+      if (favorites.includes(id)) {
+        await savedPropertiesApi.unsaveProperty(Number(id));
+        setFavorites(favorites.filter(f => f !== id));
+        toast.success('Removed from saved properties');
+      } else {
+        await savedPropertiesApi.saveProperty(Number(id));
+        setFavorites([...favorites, id]);
+        toast.success('Added to saved properties');
+      }
+    } catch (error: any) {
+      const message = error?.response?.data?.message || 'Failed to update saved properties';
+      toast.error(message);
     }
-    setFavorites(newFavorites);
-    localStorage.setItem(`saved_properties_${user.id}`, JSON.stringify(newFavorites));
   };
 
   const clearFilters = () => {
