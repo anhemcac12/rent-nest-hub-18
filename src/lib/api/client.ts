@@ -13,89 +13,6 @@ export class ApiError extends Error {
   }
 }
 
-// Safe error messages that don't expose internal details
-const ERROR_MESSAGES: Record<number, string> = {
-  400: 'Invalid request. Please check your input and try again.',
-  401: 'Please log in to continue.',
-  403: 'You do not have permission to perform this action.',
-  404: 'The requested resource was not found.',
-  409: 'This action conflicts with existing data.',
-  422: 'The provided data is invalid.',
-  429: 'Too many requests. Please try again later.',
-  500: 'Something went wrong on our end. Please try again later.',
-  502: 'Service temporarily unavailable. Please try again later.',
-  503: 'Service temporarily unavailable. Please try again later.',
-};
-
-// Extract safe user-facing message from error response
-function getUserFriendlyErrorMessage(status: number, data: unknown): string {
-  // Check for specific known safe messages from backend (e.g., validation errors we want to show)
-  if (typeof data === 'object' && data !== null) {
-    const errorData = data as Record<string, unknown>;
-    const message = errorData.message as string;
-    
-    // Only pass through specific safe messages (user-facing validation errors)
-    if (message && isSafeErrorMessage(message)) {
-      return message;
-    }
-  }
-  
-  // Return generic message based on status code
-  return ERROR_MESSAGES[status] || 'An unexpected error occurred. Please try again.';
-}
-
-// Check if an error message is safe to display to users
-function isSafeErrorMessage(message: string): boolean {
-  // Allow through known user-facing validation messages
-  const safePatterns = [
-    /^password/i,
-    /^email/i,
-    /^invalid.*credentials/i,
-    /already exists/i,
-    /not found/i,
-    /not available/i,
-    /already have/i,
-    /cannot.*own/i,
-    /not authorized/i,
-    /only pending/i,
-  ];
-  
-  // Block messages that might contain sensitive info
-  const unsafePatterns = [
-    /sql/i,
-    /database/i,
-    /exception/i,
-    /stack/i,
-    /trace/i,
-    /internal/i,
-    /null pointer/i,
-    /undefined/i,
-    /connection/i,
-    /timeout/i,
-  ];
-  
-  // Check if message contains unsafe patterns
-  for (const pattern of unsafePatterns) {
-    if (pattern.test(message)) {
-      return false;
-    }
-  }
-  
-  // Check if message matches safe patterns
-  for (const pattern of safePatterns) {
-    if (pattern.test(message)) {
-      return true;
-    }
-  }
-  
-  // For short messages (likely user-facing), allow them
-  if (message.length < 100 && !message.includes('\n')) {
-    return true;
-  }
-  
-  return false;
-}
-
 // Get stored auth token
 export const getAuthToken = (): string | null => {
   return localStorage.getItem(TOKEN_KEY);
@@ -155,15 +72,20 @@ export async function apiClient<T>(
 
     // Handle error responses
     if (!response.ok) {
-      // Log detailed error for debugging (only in development)
-      if (import.meta.env.DEV && typeof data === 'object' && data !== null) {
-        console.error('API Error Details:', data);
-      }
+      // Extract error message from backend response
+      let errorMessage = 'An error occurred';
       
-      // Map to user-friendly error messages - don't expose internal details
-      const userFriendlyMessage = getUserFriendlyErrorMessage(response.status, data);
+      if (typeof data === 'object' && data !== null) {
+        const errorData = data as Record<string, unknown>;
+        errorMessage = 
+          (errorData.message as string) || 
+          (errorData.error as string) || 
+          (errorData.detail as string) ||
+          (Array.isArray(errorData.errors) ? errorData.errors.join(', ') : '') ||
+          `Error ${response.status}`;
+      }
 
-      throw new ApiError(userFriendlyMessage, response.status, data);
+      throw new ApiError(errorMessage, response.status, data);
     }
 
     return data as T;
