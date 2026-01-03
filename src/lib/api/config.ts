@@ -34,6 +34,14 @@ export const API_ENDPOINTS = {
   SAVED_PROPERTIES: "/api/users/me/saved-properties",
   SAVED_PROPERTY_STATUS: (propertyId: number) => `/api/users/me/saved-properties/${propertyId}/status`,
   UNSAVE_PROPERTY: (propertyId: number) => `/api/users/me/saved-properties/${propertyId}`,
+
+  // Lease Applications
+  LEASE_APPLICATIONS: "/api/lease-applications",
+  LEASE_APPLICATIONS_MY: "/api/lease-applications/my",
+  LEASE_APPLICATIONS_FOR_PROPERTY: (propertyId: number) => `/api/lease-applications/for-property/${propertyId}`,
+  LEASE_APPLICATION_APPROVE: (applicationId: number) => `/api/lease-applications/${applicationId}/approve`,
+  LEASE_APPLICATION_REJECT: (applicationId: number) => `/api/lease-applications/${applicationId}/reject`,
+  LEASE_APPLICATION_CANCEL: (applicationId: number) => `/api/lease-applications/${applicationId}/cancel`,
 } as const;
 
 // Token storage keys

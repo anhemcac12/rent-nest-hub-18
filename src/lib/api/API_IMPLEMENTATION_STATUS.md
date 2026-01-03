@@ -25,7 +25,7 @@ This file tracks which APIs have been implemented in the frontend and are connec
 | Files | 3/3 | 3 | 100% |
 | Properties | 8/8 | 8 | 100% |
 | Saved Properties | 4/4 | 4 | 100% |
-| Applications | 0/6 | 6 | 0% |
+| Applications | 6/6 | 6 | 100% |
 | Leases | 0/7 | 7 | 0% |
 | Conversations/Messages | 0/5 | 5 | 0% |
 | Notifications | 0/5 | 5 | 0% |
@@ -34,7 +34,7 @@ This file tracks which APIs have been implemented in the frontend and are connec
 | Documents | 0/3 | 3 | 0% |
 | Property Managers | 0/3 | 3 | 0% |
 | Manager Dashboard | 0/4 | 4 | 0% |
-| **TOTAL** | **25/66** | **66** | **38%** |
+| **TOTAL** | **31/66** | **66** | **47%** |
 
 ---
 
@@ -99,16 +99,16 @@ This file tracks which APIs have been implemented in the frontend and are connec
 
 ---
 
-## 6. Applications ❌ (0/6)
+## 6. Applications ✅ (6/6)
 
 | Endpoint | Status | API File | Notes |
 |----------|--------|----------|-------|
-| GET /applications | ❌ | - | Get tenant's applications |
-| POST /applications | ❌ | - | Submit application |
-| PUT /applications/:id/withdraw | ❌ | - | Withdraw application |
-| GET /applications/check/:propertyId | ❌ | - | Check if applied |
-| GET /landlord/applications | ❌ | - | Get landlord's applications |
-| PUT /landlord/applications/:id/status | ❌ | - | Update application status |
+| POST /api/lease-applications | ✅ | leaseApplicationApi.ts | `leaseApplicationApi.createApplication()` |
+| GET /api/lease-applications/my | ✅ | leaseApplicationApi.ts | `leaseApplicationApi.getMyApplications()` |
+| GET /api/lease-applications/for-property/:id | ✅ | leaseApplicationApi.ts | `leaseApplicationApi.getApplicationsForProperty()` |
+| PATCH /api/lease-applications/:id/approve | ✅ | leaseApplicationApi.ts | `leaseApplicationApi.approveApplication()` |
+| PATCH /api/lease-applications/:id/reject | ✅ | leaseApplicationApi.ts | `leaseApplicationApi.rejectApplication()` |
+| PATCH /api/lease-applications/:id/cancel | ✅ | leaseApplicationApi.ts | `leaseApplicationApi.cancelApplication()` |
 
 ---
 
@@ -210,13 +210,14 @@ This file tracks which APIs have been implemented in the frontend and are connec
 | - | File APIs (3): upload, delete, signed URL |
 | - | Property APIs (8): search, get, featured, by landlord, create, update, delete, assign/remove manager |
 | 2026-01-03 | Saved Properties APIs (4): get saved, save, unsave, check status |
+| 2026-01-03 | Lease Applications APIs (6): create, get my, get for property, approve, reject, cancel |
 
 ---
 
 ## Next Priority APIs to Implement
 
-1. **Applications** - Enable property application workflow
-2. **Leases** - Enable lease management
-3. **Conversations/Messages** - Enable landlord-tenant communication
-4. **Notifications** - Enable real-time notifications
-5. **Maintenance** - Enable maintenance request workflow
+1. **Leases** - Enable lease management
+2. **Conversations/Messages** - Enable landlord-tenant communication
+3. **Notifications** - Enable real-time notifications
+4. **Maintenance** - Enable maintenance request workflow
+5. **Payments** - Enable payment processing

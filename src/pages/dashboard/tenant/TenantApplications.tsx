@@ -1,27 +1,31 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { format, parseISO } from 'date-fns';
-import { FileText, Clock, CheckCircle2, XCircle, AlertCircle, MapPin, ChevronDown, ChevronUp, Undo2 } from 'lucide-react';
+import { FileText, Clock, CheckCircle2, XCircle, AlertCircle, MapPin, Undo2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useAuth } from '@/contexts/AuthContext';
-import { getApplications, withdrawApplication } from '@/lib/mockDatabase';
-import { Application } from '@/types/tenant';
+import { leaseApplicationApi, LeaseApplicationResponseDTO, LeaseApplicationStatus } from '@/lib/api/leaseApplicationApi';
+import { ApiError } from '@/lib/api/client';
 import { toast } from 'sonner';
 
-const statusConfig = {
-  pending: { label: 'Pending', icon: Clock, className: 'bg-warning/10 text-warning border-warning/30' },
-  under_review: { label: 'Under Review', icon: AlertCircle, className: 'bg-info/10 text-info border-info/30' },
-  approved: { label: 'Approved', icon: CheckCircle2, className: 'bg-accent/10 text-accent border-accent/30' },
-  rejected: { label: 'Rejected', icon: XCircle, className: 'bg-destructive/10 text-destructive border-destructive/30' },
-  withdrawn: { label: 'Withdrawn', icon: Undo2, className: 'bg-muted text-muted-foreground border-muted-foreground/30' },
+// Map backend status to display config
+const statusConfig: Record<LeaseApplicationStatus, { label: string; icon: typeof Clock; className: string }> = {
+  PENDING: { label: 'Pending', icon: Clock, className: 'bg-warning/10 text-warning border-warning/30' },
+  APPROVED: { label: 'Approved', icon: CheckCircle2, className: 'bg-accent/10 text-accent border-accent/30' },
+  REJECTED: { label: 'Rejected', icon: XCircle, className: 'bg-destructive/10 text-destructive border-destructive/30' },
+  CANCELLED: { label: 'Cancelled', icon: Undo2, className: 'bg-muted text-muted-foreground border-muted-foreground/30' },
 };
 
-function ApplicationCard({ application, onWithdraw }: { application: Application; onWithdraw: () => void }) {
-  const [isOpen, setIsOpen] = useState(false);
+function ApplicationCard({ 
+  application, 
+  onCancel 
+}: { 
+  application: LeaseApplicationResponseDTO; 
+  onCancel: () => void;
+}) {
   const config = statusConfig[application.status];
   const StatusIcon = config.icon;
 
@@ -29,56 +33,43 @@ function ApplicationCard({ application, onWithdraw }: { application: Application
     <Card>
       <CardContent className="p-6">
         <div className="flex flex-col sm:flex-row gap-4">
-          <img src={application.property.thumbnail} alt={application.property.title} className="w-full sm:w-40 h-28 object-cover rounded-lg" />
+          <img 
+            src={application.property.coverImageUrl || '/placeholder.svg'} 
+            alt={application.property.title} 
+            className="w-full sm:w-40 h-28 object-cover rounded-lg" 
+          />
           <div className="flex-1 space-y-3">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <Badge variant="outline" className={config.className}>
                   <StatusIcon className="h-3 w-3 mr-1" />{config.label}
                 </Badge>
-                <Link to={`/properties/${application.propertyId}`}>
-                  <h3 className="font-semibold text-lg mt-2 hover:text-primary transition-colors">{application.property.title}</h3>
+                <Link to={`/properties/${application.property.id}`}>
+                  <h3 className="font-semibold text-lg mt-2 hover:text-primary transition-colors">
+                    {application.property.title}
+                  </h3>
                 </Link>
                 <p className="text-sm text-muted-foreground flex items-center gap-1">
-                  <MapPin className="h-3 w-3" />{application.property.address.city}, {application.property.address.state}
+                  <MapPin className="h-3 w-3" />{application.property.address}
                 </p>
               </div>
-              <p className="text-lg font-bold text-primary shrink-0">${application.property.price.toLocaleString()}/mo</p>
+              <p className="text-lg font-bold text-primary shrink-0">
+                ${application.property.rentAmount?.toLocaleString() || 'N/A'}/mo
+              </p>
             </div>
             <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-              <span>Applied: {format(parseISO(application.appliedAt), 'MMM d, yyyy')}</span>
-              <span>Updated: {format(parseISO(application.updatedAt), 'MMM d, yyyy')}</span>
+              <span>Applied: {format(parseISO(application.applicationDate), 'MMM d, yyyy')}</span>
             </div>
-            {application.notes && <p className="text-sm p-3 bg-muted rounded-lg">{application.notes}</p>}
-            <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-              <div className="flex items-center gap-2">
-                <CollapsibleTrigger asChild>
-                  <Button variant="ghost" size="sm">
-                    {isOpen ? <><ChevronUp className="h-4 w-4 mr-1" />Hide Timeline</> : <><ChevronDown className="h-4 w-4 mr-1" />View Timeline</>}
-                  </Button>
-                </CollapsibleTrigger>
-                {application.status === 'pending' && (
-                  <Button variant="outline" size="sm" onClick={onWithdraw}>Withdraw Application</Button>
-                )}
-              </div>
-              <CollapsibleContent className="mt-4">
-                <div className="space-y-3 pl-4 border-l-2 border-border">
-                  {application.timeline.map((event) => {
-                    const eventConfig = statusConfig[event.status];
-                    const EventIcon = eventConfig.icon;
-                    return (
-                      <div key={event.id} className="relative pl-4">
-                        <div className="absolute -left-[9px] top-1 h-4 w-4 rounded-full bg-background border-2 border-border flex items-center justify-center">
-                          <EventIcon className="h-2.5 w-2.5" />
-                        </div>
-                        <p className="text-sm font-medium">{event.message}</p>
-                        <p className="text-xs text-muted-foreground">{format(parseISO(event.timestamp), 'MMM d, yyyy h:mm a')}</p>
-                      </div>
-                    );
-                  })}
-                </div>
-              </CollapsibleContent>
-            </Collapsible>
+            {application.message && (
+              <p className="text-sm p-3 bg-muted rounded-lg line-clamp-2">{application.message}</p>
+            )}
+            <div className="flex items-center gap-2">
+              {application.status === 'PENDING' && (
+                <Button variant="outline" size="sm" onClick={onCancel}>
+                  Cancel Application
+                </Button>
+              )}
+            </div>
           </div>
         </div>
       </CardContent>
@@ -89,35 +80,72 @@ function ApplicationCard({ application, onWithdraw }: { application: Application
 export default function TenantApplications() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('all');
-  const [applications, setApplications] = useState<Application[]>([]);
+  const [applications, setApplications] = useState<LeaseApplicationResponseDTO[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const fetchApplications = async () => {
+    if (!user) return;
+    
+    try {
+      setIsLoading(true);
+      const data = await leaseApplicationApi.getMyApplications();
+      setApplications(data);
+    } catch (error) {
+      if (error instanceof ApiError) {
+        toast.error(error.message);
+      } else {
+        toast.error('Failed to load applications');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    if (user) {
-      setApplications(getApplications(user.id));
-    }
+    fetchApplications();
   }, [user]);
 
-  const handleWithdraw = (applicationId: string) => {
-    if (!user) return;
-    withdrawApplication(user.id, applicationId);
-    setApplications(getApplications(user.id));
-    toast.success('Application withdrawn');
+  const handleCancel = async (applicationId: number) => {
+    try {
+      await leaseApplicationApi.cancelApplication(applicationId);
+      toast.success('Application cancelled');
+      fetchApplications();
+    } catch (error) {
+      if (error instanceof ApiError) {
+        toast.error(error.message);
+      } else {
+        toast.error('Failed to cancel application');
+      }
+    }
   };
 
   const filterApplications = (status: string) => {
     if (status === 'all') return applications;
-    return applications.filter((a) => a.status === status);
+    return applications.filter((a) => a.status === status.toUpperCase());
   };
 
   const tabs = [
     { value: 'all', label: 'All', count: applications.length },
-    { value: 'pending', label: 'Pending', count: applications.filter((a) => a.status === 'pending').length },
-    { value: 'under_review', label: 'Under Review', count: applications.filter((a) => a.status === 'under_review').length },
-    { value: 'approved', label: 'Approved', count: applications.filter((a) => a.status === 'approved').length },
-    { value: 'rejected', label: 'Rejected', count: applications.filter((a) => a.status === 'rejected').length },
+    { value: 'pending', label: 'Pending', count: applications.filter((a) => a.status === 'PENDING').length },
+    { value: 'approved', label: 'Approved', count: applications.filter((a) => a.status === 'APPROVED').length },
+    { value: 'rejected', label: 'Rejected', count: applications.filter((a) => a.status === 'REJECTED').length },
   ];
 
   const filteredApplications = filterApplications(activeTab);
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold">My Applications</h1>
+          <p className="text-muted-foreground mt-1">Track the status of your property applications</p>
+        </div>
+        <div className="flex items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -136,7 +164,11 @@ export default function TenantApplications() {
         <TabsContent value={activeTab} className="mt-6 space-y-4">
           {filteredApplications.length > 0 ? (
             filteredApplications.map((application) => (
-              <ApplicationCard key={application.id} application={application} onWithdraw={() => handleWithdraw(application.id)} />
+              <ApplicationCard 
+                key={application.id} 
+                application={application} 
+                onCancel={() => handleCancel(application.id)} 
+              />
             ))
           ) : (
             <Card>
