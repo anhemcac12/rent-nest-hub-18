@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { CalendarIcon, FileText } from 'lucide-react';
 import { format } from 'date-fns';
 import {
@@ -24,11 +23,12 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
-import { createApplication, hasAppliedToProperty } from '@/lib/mockDatabase';
+import { leaseApplicationApi } from '@/lib/api/leaseApplicationApi';
+import { ApiError } from '@/lib/api/client';
 import { toast } from 'sonner';
 
 interface ApplyLeaseProperty {
-  id: string;
+  id: string | number;
   title: string;
   price: number;
   thumbnail?: string;
@@ -54,7 +54,6 @@ export function ApplyLeaseModal({ open, onOpenChange, onClose, property, onSucce
     }
     onOpenChange?.(isOpen);
   };
-  const navigate = useNavigate();
   const { user } = useAuth();
   const [moveInDate, setMoveInDate] = useState<Date>();
   const [message, setMessage] = useState('');
@@ -62,8 +61,11 @@ export function ApplyLeaseModal({ open, onOpenChange, onClose, property, onSucce
   const [agreed, setAgreed] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = () => {
-    if (!user) return;
+  const handleSubmit = async () => {
+    if (!user) {
+      toast.error('Please log in to apply');
+      return;
+    }
     if (!moveInDate) {
       toast.error('Please select a preferred move-in date');
       return;
@@ -77,31 +79,28 @@ export function ApplyLeaseModal({ open, onOpenChange, onClose, property, onSucce
       return;
     }
 
-    // Check if already applied
-    if (hasAppliedToProperty(user.id, property.id)) {
-      toast.error('You have already applied to this property');
-      return;
-    }
-
     setIsSubmitting(true);
 
-    const fullMessage = `Employment: ${employmentStatus}\n\n${message}`;
-    const application = createApplication(
-      user.id,
-      property.id,
-      moveInDate.toISOString(),
-      fullMessage
-    );
+    try {
+      const fullMessage = `Preferred move-in: ${format(moveInDate, 'PPP')}\nEmployment: ${employmentStatus}\n\n${message}`;
+      
+      await leaseApplicationApi.createApplication({
+        propertyId: Number(property.id),
+        message: fullMessage,
+      });
 
-    if (application) {
       toast.success('Application submitted successfully!');
       handleClose(false);
       onSuccess?.();
-    } else {
-      toast.error('Failed to submit application');
+    } catch (error) {
+      if (error instanceof ApiError) {
+        toast.error(error.message);
+      } else {
+        toast.error('Failed to submit application');
+      }
+    } finally {
+      setIsSubmitting(false);
     }
-
-    setIsSubmitting(false);
   };
 
   return (
@@ -206,7 +205,7 @@ export function ApplyLeaseModal({ open, onOpenChange, onClose, property, onSucce
         </div>
 
         <div className="flex gap-3">
-          <Button variant="outline" onClick={() => onOpenChange(false)} className="flex-1">
+          <Button variant="outline" onClick={() => handleClose(false)} className="flex-1">
             Cancel
           </Button>
           <Button onClick={handleSubmit} disabled={isSubmitting} className="flex-1">
