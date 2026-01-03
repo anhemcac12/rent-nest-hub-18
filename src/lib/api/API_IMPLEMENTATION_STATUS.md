@@ -24,7 +24,7 @@ This file tracks which APIs have been implemented in the frontend and are connec
 | User/Profile | 4/4 | 4 | 100% |
 | Files | 3/3 | 3 | 100% |
 | Properties | 8/8 | 8 | 100% |
-| Saved Properties | 0/4 | 4 | 0% |
+| Saved Properties | 4/4 | 4 | 100% |
 | Applications | 0/6 | 6 | 0% |
 | Leases | 0/7 | 7 | 0% |
 | Conversations/Messages | 0/5 | 5 | 0% |
@@ -34,7 +34,7 @@ This file tracks which APIs have been implemented in the frontend and are connec
 | Documents | 0/3 | 3 | 0% |
 | Property Managers | 0/3 | 3 | 0% |
 | Manager Dashboard | 0/4 | 4 | 0% |
-| **TOTAL** | **21/66** | **66** | **32%** |
+| **TOTAL** | **25/66** | **66** | **38%** |
 
 ---
 
@@ -88,14 +88,14 @@ This file tracks which APIs have been implemented in the frontend and are connec
 
 ---
 
-## 5. Saved Properties ❌ (0/4)
+## 5. Saved Properties ✅ (4/4)
 
 | Endpoint | Status | API File | Notes |
 |----------|--------|----------|-------|
-| GET /saved-properties | ❌ | - | Get user's saved properties |
-| POST /saved-properties/:propertyId | ❌ | - | Save property to favorites |
-| DELETE /saved-properties/:propertyId | ❌ | - | Remove from favorites |
-| GET /saved-properties/check/:propertyId | ❌ | - | Check if property is saved |
+| GET /api/users/me/saved-properties | ✅ | savedPropertiesApi.ts | `savedPropertiesApi.getSavedProperties()` |
+| POST /api/users/me/saved-properties | ✅ | savedPropertiesApi.ts | `savedPropertiesApi.saveProperty()` |
+| DELETE /api/users/me/saved-properties/:propertyId | ✅ | savedPropertiesApi.ts | `savedPropertiesApi.unsaveProperty()` |
+| GET /api/users/me/saved-properties/:propertyId/status | ✅ | savedPropertiesApi.ts | `savedPropertiesApi.checkSavedStatus()` |
 
 ---
 
@@ -209,13 +209,14 @@ This file tracks which APIs have been implemented in the frontend and are connec
 | - | User APIs (4): public profile, current profile, update profile, unlink ID document |
 | - | File APIs (3): upload, delete, signed URL |
 | - | Property APIs (8): search, get, featured, by landlord, create, update, delete, assign/remove manager |
+| 2026-01-03 | Saved Properties APIs (4): get saved, save, unsave, check status |
 
 ---
 
 ## Next Priority APIs to Implement
 
-1. **Saved Properties** - Enable tenant favorites functionality
-2. **Applications** - Enable property application workflow
-3. **Leases** - Enable lease management
-4. **Conversations/Messages** - Enable landlord-tenant communication
-5. **Notifications** - Enable real-time notifications
+1. **Applications** - Enable property application workflow
+2. **Leases** - Enable lease management
+3. **Conversations/Messages** - Enable landlord-tenant communication
+4. **Notifications** - Enable real-time notifications
+5. **Maintenance** - Enable maintenance request workflow

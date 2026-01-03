@@ -29,6 +29,11 @@ export const API_ENDPOINTS = {
   PROPERTIES_FEATURED: "/api/properties/featured",
   PROPERTIES_BY_LANDLORD: (landlordId: number) => `/api/properties/landlord/${landlordId}`,
   PROPERTY_MANAGER: (propertyId: number) => `/api/properties/${propertyId}/manager`,
+
+  // Saved Properties
+  SAVED_PROPERTIES: "/api/users/me/saved-properties",
+  SAVED_PROPERTY_STATUS: (propertyId: number) => `/api/users/me/saved-properties/${propertyId}/status`,
+  UNSAVE_PROPERTY: (propertyId: number) => `/api/users/me/saved-properties/${propertyId}`,
 } as const;
 
 // Token storage keys
