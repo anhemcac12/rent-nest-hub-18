@@ -13,6 +13,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { propertyApi, PropertyResponseDTO, PropertySummaryDTO } from '@/lib/api/propertyApi';
+import { savedPropertiesApi } from '@/lib/api/savedPropertiesApi';
 
 export default function PropertyDetail() {
   const { id } = useParams<{ id: string }>();
@@ -78,18 +79,22 @@ export default function PropertyDetail() {
     fetchRelatedProperties();
   }, [property]);
 
-  // Load saved status from localStorage
+  // Load saved status from API
   useEffect(() => {
-    if (user && property) {
-      const saved = localStorage.getItem(`saved_properties_${user.id}`);
-      if (saved) {
-        const favorites = JSON.parse(saved);
-        setIsFavorite(favorites.includes(String(property.id)));
+    const checkSavedStatus = async () => {
+      if (user && property && isAuthenticated) {
+        try {
+          const { saved } = await savedPropertiesApi.checkSavedStatus(property.id);
+          setIsFavorite(saved);
+        } catch (error) {
+          console.error('Failed to check saved status:', error);
+        }
+      } else {
+        setIsFavorite(false);
       }
-    } else {
-      setIsFavorite(false);
-    }
-  }, [user, property]);
+    };
+    checkSavedStatus();
+  }, [user, property, isAuthenticated]);
 
   if (isLoading) {
     return (
@@ -123,26 +128,26 @@ export default function PropertyDetail() {
   const nextImage = () => setCurrentImageIndex((prev) => (prev + 1) % images.length);
   const prevImage = () => setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
 
-  const handleToggleFavorite = () => {
+  const handleToggleFavorite = async () => {
     if (!isAuthenticated || !user) {
       navigate('/auth');
       return;
     }
     
-    const saved = localStorage.getItem(`saved_properties_${user.id}`);
-    let favorites: string[] = saved ? JSON.parse(saved) : [];
-    
-    if (isFavorite) {
-      favorites = favorites.filter(f => f !== String(property.id));
-      setIsFavorite(false);
-      toast.success('Removed from saved properties');
-    } else {
-      favorites.push(String(property.id));
-      setIsFavorite(true);
-      toast.success('Added to saved properties');
+    try {
+      if (isFavorite) {
+        await savedPropertiesApi.unsaveProperty(property.id);
+        setIsFavorite(false);
+        toast.success('Removed from saved properties');
+      } else {
+        await savedPropertiesApi.saveProperty(property.id);
+        setIsFavorite(true);
+        toast.success('Added to saved properties');
+      }
+    } catch (error: any) {
+      const message = error?.response?.data?.message || 'Failed to update saved properties';
+      toast.error(message);
     }
-    
-    localStorage.setItem(`saved_properties_${user.id}`, JSON.stringify(favorites));
   };
 
   const handleApplyLease = () => {
