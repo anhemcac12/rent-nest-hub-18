@@ -1,8 +1,109 @@
 # Monthly Rent Tracking - Backend Specification
 
-## Overview
+Complete specification for implementing monthly rent schedule tracking.
 
-This document specifies the monthly rent schedule tracking system that automatically generates and tracks rent payments for active leases.
+---
+
+## CRITICAL: Rent Period Calculation Rules
+
+### ❌ WRONG: Calendar Month Approach
+```
+Lease starts: Jan 25, 2025
+Month 1: January 2025 (Jan 1 - Jan 31) ← WRONG!
+Month 2: February 2025 (Feb 1 - Feb 28)
+```
+**Problem**: If tenant moves in Jan 25, why pay for Jan 1-24?
+
+### ✅ CORRECT: Rolling 30-Day Periods
+```
+Lease starts: Jan 25, 2025
+Period 1: Jan 25 - Feb 23 (30 days)
+Period 2: Feb 24 - Mar 25 (30 days)
+Period 3: Mar 26 - Apr 24 (30 days)
+... and so on
+```
+
+### Period Calculation Algorithm
+```java
+public List<RentSchedule> generateRentSchedule(Lease lease) {
+    LocalDate periodStart = lease.getStartDate();
+    LocalDate leaseEnd = lease.getEndDate();
+    List<RentSchedule> schedule = new ArrayList<>();
+    int periodNumber = 1;
+    
+    while (periodStart.isBefore(leaseEnd) || periodStart.isEqual(leaseEnd)) {
+        LocalDate periodEnd = periodStart.plusDays(29); // 30 days inclusive
+        
+        // If this period extends past lease end, cap it
+        if (periodEnd.isAfter(leaseEnd)) {
+            periodEnd = leaseEnd;
+        }
+        
+        RentSchedule entry = new RentSchedule();
+        entry.setLeaseId(lease.getId());
+        entry.setPeriodNumber(periodNumber);
+        entry.setPeriodStart(periodStart);
+        entry.setPeriodEnd(periodEnd);
+        entry.setDueDate(periodStart); // Rent due on first day of period
+        entry.setAmountDue(lease.getRentAmount());
+        entry.setAmountPaid(BigDecimal.ZERO);
+        
+        // CRITICAL: First period is PAID via acceptance payment!
+        if (periodNumber == 1) {
+            entry.setStatus(RentStatus.PAID);
+            entry.setAmountPaid(lease.getRentAmount());
+            entry.setPaidAt(lease.getActivatedAt()); // Use activation timestamp
+            // Link to acceptance payment
+        } else {
+            entry.setStatus(RentStatus.UPCOMING);
+        }
+        
+        schedule.add(entry);
+        
+        // Move to next period
+        periodStart = periodEnd.plusDays(1);
+        periodNumber++;
+    }
+    
+    return schedule;
+}
+```
+
+### Example: 1-Year Lease Starting Jan 25, 2025
+
+| Period | Start Date | End Date | Due Date | Status (Initial) |
+|--------|------------|----------|----------|------------------|
+| 1 | Jan 25, 2025 | Feb 23, 2025 | Jan 25, 2025 | **PAID** (acceptance) |
+| 2 | Feb 24, 2025 | Mar 25, 2025 | Feb 24, 2025 | UPCOMING |
+| 3 | Mar 26, 2025 | Apr 24, 2025 | Mar 26, 2025 | UPCOMING |
+| 4 | Apr 25, 2025 | May 24, 2025 | Apr 25, 2025 | UPCOMING |
+| 5 | May 25, 2025 | Jun 23, 2025 | May 25, 2025 | UPCOMING |
+| 6 | Jun 24, 2025 | Jul 23, 2025 | Jun 24, 2025 | UPCOMING |
+| 7 | Jul 24, 2025 | Aug 22, 2025 | Jul 24, 2025 | UPCOMING |
+| 8 | Aug 23, 2025 | Sep 21, 2025 | Aug 23, 2025 | UPCOMING |
+| 9 | Sep 22, 2025 | Oct 21, 2025 | Sep 22, 2025 | UPCOMING |
+| 10 | Oct 22, 2025 | Nov 20, 2025 | Oct 22, 2025 | UPCOMING |
+| 11 | Nov 21, 2025 | Dec 20, 2025 | Nov 21, 2025 | UPCOMING |
+| 12 | Dec 21, 2025 | Jan 19, 2026 | Dec 21, 2025 | UPCOMING |
+
+### First Month Payment Flow
+
+```
+1. Tenant accepts lease
+   → Status: AWAITING_PAYMENT
+   → totalDue = securityDeposit + rentAmount
+
+2. Tenant pays acceptance payment ($5000)
+   → Payment recorded with type: DEPOSIT_AND_FIRST_RENT
+   → Lease status: ACTIVE
+   → Generate rent schedule (12 entries)
+   → Period 1 status: PAID (linked to acceptance payment)
+   → Period 2-12 status: UPCOMING
+
+3. On Feb 24 (Period 2 due date):
+   → Background job updates Period 2: UPCOMING → DUE
+   → Tenant gets notification
+```
 
 ---
 
