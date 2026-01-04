@@ -50,8 +50,17 @@ export const API_ENDPOINTS = {
   LEASE_AGREEMENTS_FOR_LANDLORD: "/api/lease-agreements/for-landlord",
   LEASE_AGREEMENTS_FOR_PROPERTY: (propertyId: number) => `/api/lease-agreements/for-property/${propertyId}`,
   LEASE_AGREEMENT_CONTRACT: (leaseId: number) => `/api/lease-agreements/${leaseId}/contract`,
+  LEASE_AGREEMENT_ACCEPT: (leaseId: number) => `/api/lease-agreements/${leaseId}/accept`,
+  LEASE_AGREEMENT_REJECT: (leaseId: number) => `/api/lease-agreements/${leaseId}/reject`,
+  LEASE_AGREEMENT_DEADLINE_STATUS: (leaseId: number) => `/api/lease-agreements/${leaseId}/deadline-status`,
   LEASE_AGREEMENT_ACTIVATE: (leaseId: number) => `/api/lease-agreements/${leaseId}/activate`,
   LEASE_AGREEMENT_TERMINATE: (leaseId: number) => `/api/lease-agreements/${leaseId}/terminate`,
+
+  // Payments
+  PAYMENTS_FOR_LEASE: (leaseId: number) => `/api/payments/lease/${leaseId}`,
+  PAYMENT_ACCEPTANCE: (leaseId: number) => `/api/payments/lease/${leaseId}/acceptance-payment`,
+  PAYMENT_SUMMARY: (leaseId: number) => `/api/payments/lease/${leaseId}/summary`,
+  PAYMENT_TENANT_PAY: (leaseId: number) => `/api/payments/lease/${leaseId}/pay`,
 } as const;
 
 // Token storage keys

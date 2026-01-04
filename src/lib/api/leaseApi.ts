@@ -1,8 +1,8 @@
 import { api } from "./client";
-import { API_BASE_URL, API_ENDPOINTS } from "./config";
+import { API_ENDPOINTS } from "./config";
 
 // Types based on backend DTOs
-export type LeaseStatus = 'PENDING' | 'ACTIVE' | 'TERMINATED' | 'EXPIRED';
+export type LeaseStatus = 'PENDING' | 'AWAITING_PAYMENT' | 'ACTIVE' | 'TERMINATED' | 'EXPIRED';
 
 export interface LeaseResponseDTO {
   id: number;
@@ -27,11 +27,25 @@ export interface LeaseResponseDTO {
   startDate: string;
   endDate: string;
   rentAmount: number;
+  securityDeposit: number;
   status: LeaseStatus;
   
   // Contract
   contractFileId: number | null;
   contractFileUrl: string | null;
+  
+  // Acceptance/Rejection fields
+  acceptedAt: string | null;
+  acceptanceDeadline: string | null;
+  rejectedAt: string | null;
+  rejectionReason: string | null;
+  terminationReason: string | null;
+  
+  // Payment tracking
+  depositPaid: boolean;
+  firstRentPaid: boolean;
+  totalDueOnAcceptance: number;
+  totalPaidOnAcceptance: number;
 }
 
 export interface CreateLeaseRequestDTO {
@@ -39,10 +53,30 @@ export interface CreateLeaseRequestDTO {
   startDate: string;
   endDate: string;
   rentAmount: number;
+  securityDeposit: number;
 }
 
 export interface UploadLeaseContractDTO {
   contractDocumentId: number;
+}
+
+export interface TenantAcceptLeaseDTO {
+  agreedToTerms: boolean;
+}
+
+export interface TenantRejectLeaseDTO {
+  reason: string;
+}
+
+export interface DeadlineStatusDTO {
+  leaseId: number;
+  status: string;
+  acceptedAt: string | null;
+  deadline: string | null;
+  currentTime: string;
+  hoursRemaining: number | null;
+  isExpired: boolean;
+  willAutoTerminateAt: string | null;
 }
 
 export const leaseApi = {
@@ -77,7 +111,24 @@ export const leaseApi = {
     return api.patch<LeaseResponseDTO>(API_ENDPOINTS.LEASE_AGREEMENT_CONTRACT(leaseId), data);
   },
 
-  // Activate pending lease
+  // Tenant accepts lease
+  acceptLease: (leaseId: number, agreedToTerms: boolean = true): Promise<LeaseResponseDTO> => {
+    const data: TenantAcceptLeaseDTO = { agreedToTerms };
+    return api.patch<LeaseResponseDTO>(API_ENDPOINTS.LEASE_AGREEMENT_ACCEPT(leaseId), data);
+  },
+
+  // Tenant rejects lease
+  rejectLease: (leaseId: number, reason: string): Promise<LeaseResponseDTO> => {
+    const data: TenantRejectLeaseDTO = { reason };
+    return api.patch<LeaseResponseDTO>(API_ENDPOINTS.LEASE_AGREEMENT_REJECT(leaseId), data);
+  },
+
+  // Get deadline status
+  getDeadlineStatus: (leaseId: number): Promise<DeadlineStatusDTO> => {
+    return api.get<DeadlineStatusDTO>(API_ENDPOINTS.LEASE_AGREEMENT_DEADLINE_STATUS(leaseId));
+  },
+
+  // Activate pending lease (manual backup)
   activateLease: (leaseId: number): Promise<LeaseResponseDTO> => {
     return api.patch<LeaseResponseDTO>(API_ENDPOINTS.LEASE_AGREEMENT_ACTIVATE(leaseId), {});
   },

@@ -26,15 +26,15 @@ This file tracks which APIs have been implemented in the frontend and are connec
 | Properties | 8/8 | 8 | 100% |
 | Saved Properties | 4/4 | 4 | 100% |
 | Applications | 6/6 | 6 | 100% |
-| Lease Agreements | 8/8 | 8 | 100% |
+| Lease Agreements | 11/11 | 11 | 100% |
+| Payments | 5/5 | 5 | 100% |
 | Conversations/Messages | 0/5 | 5 | 0% |
 | Notifications | 0/5 | 5 | 0% |
 | Maintenance | 0/3 | 3 | 0% |
-| Payments | 0/2 | 2 | 0% |
 | Documents | 0/3 | 3 | 0% |
 | Property Managers | 0/3 | 3 | 0% |
 | Manager Dashboard | 0/4 | 4 | 0% |
-| **TOTAL** | **39/64** | **64** | **61%** |
+| **TOTAL** | **47/70** | **70** | **67%** |
 
 ---
 
@@ -112,22 +112,59 @@ This file tracks which APIs have been implemented in the frontend and are connec
 
 ---
 
-## 7. Lease Agreements ✅ (8/8)
+## 7. Lease Agreements ✅ (11/11)
 
 | Endpoint | Status | API File | Notes |
 |----------|--------|----------|-------|
-| POST /api/lease-agreements | ✅ | leaseApi.ts | `leaseApi.createLease()` |
+| POST /api/lease-agreements | ✅ | leaseApi.ts | `leaseApi.createLease()` - Now includes securityDeposit |
 | GET /api/lease-agreements/:id | ✅ | leaseApi.ts | `leaseApi.getLeaseById()` |
 | GET /api/lease-agreements/my | ✅ | leaseApi.ts | `leaseApi.getMyLeases()` |
 | GET /api/lease-agreements/for-landlord | ✅ | leaseApi.ts | `leaseApi.getLeasesForLandlord()` |
 | GET /api/lease-agreements/for-property/:id | ✅ | leaseApi.ts | `leaseApi.getLeasesForProperty()` |
 | PATCH /api/lease-agreements/:id/contract | ✅ | leaseApi.ts | `leaseApi.attachContract()` |
-| PATCH /api/lease-agreements/:id/activate | ✅ | leaseApi.ts | `leaseApi.activateLease()` |
+| **PATCH /api/lease-agreements/:id/accept** | ✅ | leaseApi.ts | `leaseApi.acceptLease()` - Tenant accepts, status → AWAITING_PAYMENT |
+| **PATCH /api/lease-agreements/:id/reject** | ✅ | leaseApi.ts | `leaseApi.rejectLease()` - Tenant rejects with reason |
+| **GET /api/lease-agreements/:id/deadline-status** | ✅ | leaseApi.ts | `leaseApi.getDeadlineStatus()` - Check payment deadline |
+| PATCH /api/lease-agreements/:id/activate | ✅ | leaseApi.ts | `leaseApi.activateLease()` - Manual activation (backup) |
 | PATCH /api/lease-agreements/:id/terminate | ✅ | leaseApi.ts | `leaseApi.terminateLease()` |
+
+### Lease Status Flow
+
+```
+PENDING → (tenant accepts) → AWAITING_PAYMENT → (tenant pays) → ACTIVE
+    ↓                              ↓                              ↓
+(tenant rejects)           (48h deadline expires)          (landlord terminates)
+    ↓                              ↓                              ↓
+TERMINATED                   TERMINATED                      TERMINATED
+                                                            (or EXPIRED if end date)
+```
 
 ---
 
-## 8. Conversations & Messages ❌ (0/5)
+## 8. Payments ✅ (5/5)
+
+| Endpoint | Status | API File | Notes |
+|----------|--------|----------|-------|
+| GET /api/payments/lease/:leaseId | ✅ | paymentApi.ts | `paymentApi.getPaymentsForLease()` - Get payment history |
+| **GET /api/payments/lease/:leaseId/summary** | ✅ | paymentApi.ts | `paymentApi.getPaymentSummary()` - Get payment summary with deadline |
+| **POST /api/payments/lease/:leaseId/acceptance-payment** | ✅ | paymentApi.ts | `paymentApi.makeAcceptancePayment()` - Pay deposit+rent, auto-activates lease |
+| POST /api/payments/lease/:leaseId/pay | ✅ | paymentApi.ts | `paymentApi.tenantPay()` - Regular rent payment |
+| POST /api/payments/lease/:leaseId | ✅ | paymentApi.ts | `paymentApi.logPayment()` - Landlord logs manual payment |
+
+### Payment Types
+
+```
+RENT                   → Monthly rent payment
+DEPOSIT                → Security deposit only
+DEPOSIT_AND_FIRST_RENT → Combined deposit + first rent (for acceptance)
+LATE_FEE               → Late payment fee
+MAINTENANCE_FEE        → Maintenance charge
+OTHER                  → Miscellaneous
+```
+
+---
+
+## 9. Conversations & Messages ❌ (0/5)
 
 | Endpoint | Status | API File | Notes |
 |----------|--------|----------|-------|
@@ -139,7 +176,7 @@ This file tracks which APIs have been implemented in the frontend and are connec
 
 ---
 
-## 9. Notifications ❌ (0/5)
+## 10. Notifications ❌ (0/5)
 
 | Endpoint | Status | API File | Notes |
 |----------|--------|----------|-------|
@@ -151,22 +188,13 @@ This file tracks which APIs have been implemented in the frontend and are connec
 
 ---
 
-## 10. Maintenance ❌ (0/3)
+## 11. Maintenance ❌ (0/3)
 
 | Endpoint | Status | API File | Notes |
 |----------|--------|----------|-------|
 | GET /maintenance | ❌ | - | Get maintenance requests |
 | POST /maintenance | ❌ | - | Create request (tenant) |
 | PUT /landlord/maintenance/:id/status | ❌ | - | Update status (landlord) |
-
----
-
-## 11. Payments ❌ (0/2)
-
-| Endpoint | Status | API File | Notes |
-|----------|--------|----------|-------|
-| GET /payments | ❌ | - | Get payment history |
-| POST /payments/:id/pay | ❌ | - | Process payment |
 
 ---
 
@@ -213,6 +241,9 @@ This file tracks which APIs have been implemented in the frontend and are connec
 | 2026-01-03 | Saved Properties APIs (4): get saved, save, unsave, check status |
 | 2026-01-03 | Lease Applications APIs (6): create, get my, get for property, approve, reject, cancel |
 | 2026-01-04 | Lease Agreements APIs (8): create, get by id, get my, get for landlord, get for property, attach contract, activate, terminate |
+| 2026-01-04 | **Lease Flow Enhancement**: Added accept/reject/deadline-status (3 new endpoints), payments API (5 endpoints) |
+| - | New lease statuses: AWAITING_PAYMENT |
+| - | New lease fields: securityDeposit, acceptedAt, acceptanceDeadline, rejectedAt, rejectionReason, depositPaid, firstRentPaid, totalDueOnAcceptance, totalPaidOnAcceptance |
 
 ---
 
@@ -221,4 +252,3 @@ This file tracks which APIs have been implemented in the frontend and are connec
 1. **Conversations/Messages** - Enable landlord-tenant communication
 2. **Notifications** - Enable real-time notifications
 3. **Maintenance** - Enable maintenance request workflow
-4. **Payments** - Enable payment processing

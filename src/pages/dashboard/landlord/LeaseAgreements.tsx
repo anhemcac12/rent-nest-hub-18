@@ -62,7 +62,9 @@ export default function LeaseAgreementsPage() {
       case 'ACTIVE':
         return <Badge className="bg-green-500 hover:bg-green-600">Active</Badge>;
       case 'PENDING':
-        return <Badge className="bg-yellow-500 hover:bg-yellow-600">Pending</Badge>;
+        return <Badge className="bg-amber-500 hover:bg-amber-600">Pending Review</Badge>;
+      case 'AWAITING_PAYMENT':
+        return <Badge className="bg-blue-500 hover:bg-blue-600">Awaiting Payment</Badge>;
       case 'TERMINATED':
         return <Badge variant="destructive">Terminated</Badge>;
       case 'EXPIRED':
@@ -76,7 +78,7 @@ export default function LeaseAgreementsPage() {
   const filteredLeases = leases.filter(lease => {
     switch (selectedTab) {
       case 'pending':
-        return lease.status === 'PENDING';
+        return lease.status === 'PENDING' || lease.status === 'AWAITING_PAYMENT';
       case 'active':
         return lease.status === 'ACTIVE';
       case 'past':
@@ -88,7 +90,7 @@ export default function LeaseAgreementsPage() {
   });
 
   // Counts for tabs
-  const pendingCount = leases.filter(l => l.status === 'PENDING').length;
+  const pendingCount = leases.filter(l => l.status === 'PENDING' || l.status === 'AWAITING_PAYMENT').length;
   const activeCount = leases.filter(l => l.status === 'ACTIVE').length;
   const pastCount = leases.filter(l => ['EXPIRED', 'TERMINATED'].includes(l.status)).length;
 
@@ -108,9 +110,16 @@ export default function LeaseAgreementsPage() {
     switch (lease.status) {
       case 'PENDING':
         return (
-          <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-300">
+          <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-300">
             <Clock className="h-3 w-3 mr-1" />
-            Awaiting activation
+            Awaiting tenant review
+          </Badge>
+        );
+      case 'AWAITING_PAYMENT':
+        return (
+          <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-300">
+            <Clock className="h-3 w-3 mr-1" />
+            Tenant accepted, awaiting payment
           </Badge>
         );
       case 'ACTIVE':

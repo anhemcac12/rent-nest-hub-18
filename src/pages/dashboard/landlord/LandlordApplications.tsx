@@ -48,6 +48,7 @@ export default function LandlordApplications() {
   // Lease creation state
   const [creatingLeaseForApp, setCreatingLeaseForApp] = useState<LeaseApplicationResponseDTO | null>(null);
   const [leaseRent, setLeaseRent] = useState('');
+  const [securityDeposit, setSecurityDeposit] = useState('');
   const [startDate, setStartDate] = useState<Date>(new Date());
   const [endDate, setEndDate] = useState<Date>(() => {
     const date = new Date();
@@ -106,6 +107,7 @@ export default function LandlordApplications() {
         // After approval, show lease creation dialog
         setCreatingLeaseForApp(reviewingApp);
         setLeaseRent(reviewingApp.property.price?.toString() || '');
+        setSecurityDeposit(reviewingApp.property.price?.toString() || ''); // Default to 1 month rent
       } else {
         await leaseApplicationApi.rejectApplication(reviewingApp.id);
         toast({
@@ -143,6 +145,7 @@ export default function LandlordApplications() {
         startDate: format(startDate, 'yyyy-MM-dd'),
         endDate: format(endDate, 'yyyy-MM-dd'),
         rentAmount: parseFloat(leaseRent),
+        securityDeposit: parseFloat(securityDeposit),
       };
 
       const createdLease = await leaseApi.createLease(leaseData);
@@ -153,11 +156,11 @@ export default function LandlordApplications() {
         await leaseApi.attachContract(createdLease.id, uploadedDoc.documentId);
       }
 
-      // Step 3: Activate the lease
-      await leaseApi.activateLease(createdLease.id);
+      // Note: Lease stays PENDING until tenant accepts and pays
+      // No longer auto-activating here
 
       toast({
-        title: 'Lease Created & Activated',
+        title: 'Lease Created & Sent to Tenant',
         description: 'The lease is now active and the property is marked as rented.',
       });
 
@@ -472,6 +475,18 @@ export default function LandlordApplications() {
               />
             </div>
 
+            {/* Security Deposit */}
+            <div className="space-y-2">
+              <Label htmlFor="securityDeposit">Security Deposit ($)</Label>
+              <Input
+                id="securityDeposit"
+                type="number"
+                value={securityDeposit}
+                onChange={(e) => setSecurityDeposit(e.target.value)}
+                min={0}
+              />
+            </div>
+
             {/* Date Range */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -563,9 +578,9 @@ export default function LandlordApplications() {
             </Button>
             <Button 
               onClick={handleCreateLease}
-              disabled={isCreatingLease || !leaseRent}
+              disabled={isCreatingLease || !leaseRent || !securityDeposit}
             >
-              {isCreatingLease ? 'Creating...' : 'Create & Activate Lease'}
+              {isCreatingLease ? 'Creating...' : 'Create & Send to Tenant'}
             </Button>
           </DialogFooter>
         </DialogContent>
