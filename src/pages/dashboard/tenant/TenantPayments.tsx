@@ -204,7 +204,7 @@ export default function Payments() {
           iconClassName="bg-accent/10 text-accent"
         />
         <StatsCard
-          title="Paid Months"
+          title="Paid Periods"
           value={`${totalStats.paidMonths}/${totalStats.totalMonths}`}
           subtitle={`${totalStats.upcomingMonths} upcoming`}
           icon={CalendarDays}
@@ -297,11 +297,11 @@ export default function Payments() {
         return (
           <Card key={schedule.leaseId}>
             <CardHeader>
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
                 <div>
                   <CardTitle className="text-lg">{lease.propertyTitle}</CardTitle>
                   <CardDescription>
-                    ${schedule.rentAmount.toLocaleString()}/month • {schedule.totalMonths} months total
+                    ${schedule.rentAmount.toLocaleString()}/period (30 days) • {schedule.totalMonths} periods total
                   </CardDescription>
                 </div>
                 <Badge variant="outline">
@@ -311,8 +311,8 @@ export default function Payments() {
               <Progress value={progressPercent} className="h-2 mt-2" />
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
-                {schedule.schedule.map((item) => {
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                {schedule.schedule.map((item, index) => {
                   const config = rentStatusConfig[item.status];
                   const StatusIcon = config.icon;
                   const isPayable = item.status === 'DUE' || item.status === 'OVERDUE' || item.status === 'PARTIAL';
@@ -320,18 +320,31 @@ export default function Payments() {
                   return (
                     <div
                       key={item.id}
-                      className={`p-3 rounded-lg border text-center cursor-pointer transition-colors ${
+                      className={`p-3 rounded-lg border cursor-pointer transition-colors ${
                         isPayable ? 'hover:border-primary hover:bg-primary/5' : ''
                       } ${config.className.replace('text-', 'border-').split(' ')[0]}/20`}
                       onClick={() => isPayable && handlePayRent(lease, item)}
                     >
-                      <p className="text-xs text-muted-foreground">
-                        {format(parseISO(item.periodStart), 'MMM yyyy')}
-                      </p>
-                      <div className="flex items-center justify-center my-1">
-                        <StatusIcon className={`h-4 w-4 ${config.className.split(' ')[1]}`} />
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-medium text-muted-foreground">
+                          Period {index + 1}
+                        </span>
+                        <Badge variant="secondary" className={`text-xs ${config.className}`}>
+                          <StatusIcon className="h-3 w-3 mr-1" />
+                          {config.label}
+                        </Badge>
                       </div>
-                      <p className="text-xs font-medium">{config.label}</p>
+                      <p className="text-sm font-medium">
+                        {format(parseISO(item.periodStart), 'MMM d')} - {format(parseISO(item.periodEnd), 'MMM d')}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Due: {format(parseISO(item.dueDate), 'MMM d, yyyy')}
+                      </p>
+                      {isPayable && (
+                        <p className="text-sm font-semibold text-primary mt-1">
+                          ${(item.amountDue - item.amountPaid).toLocaleString()}
+                        </p>
+                      )}
                     </div>
                   );
                 })}

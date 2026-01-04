@@ -80,19 +80,25 @@ export function RentPaymentModal({
 
         <div className="space-y-4 py-4">
           {/* Payment Period */}
-          <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-            <div className="flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-muted-foreground" />
+          <div className="p-3 bg-muted/50 rounded-lg space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">Rent Period</span>
+              <Badge 
+                variant="secondary" 
+                className={isOverdue ? 'bg-destructive/10 text-destructive' : 'bg-warning/10 text-warning'}
+              >
+                {isOverdue ? 'Overdue' : 'Due'}
+              </Badge>
+            </div>
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Calendar className="h-4 w-4" />
               <span className="text-sm">
-                {format(parseISO(rentItem.periodStart), 'MMM d')} - {format(parseISO(rentItem.periodEnd), 'MMM d, yyyy')}
+                {format(parseISO(rentItem.periodStart), 'MMM d, yyyy')} – {format(parseISO(rentItem.periodEnd), 'MMM d, yyyy')}
               </span>
             </div>
-            <Badge 
-              variant="secondary" 
-              className={isOverdue ? 'bg-destructive/10 text-destructive' : 'bg-warning/10 text-warning'}
-            >
-              {isOverdue ? 'Overdue' : 'Due'}
-            </Badge>
+            <p className="text-xs text-muted-foreground">
+              30-day period • Due on {format(parseISO(rentItem.dueDate), 'MMM d, yyyy')}
+            </p>
           </div>
 
           {/* Overdue Warning */}
