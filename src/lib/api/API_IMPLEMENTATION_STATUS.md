@@ -28,13 +28,14 @@ This file tracks which APIs have been implemented in the frontend and are connec
 | Applications | 6/6 | 6 | 100% |
 | Lease Agreements | 11/11 | 11 | 100% |
 | Payments | 5/5 | 5 | 100% |
+| Rent Schedule | 5/5 | 5 | 100% |
 | Conversations/Messages | 0/5 | 5 | 0% |
 | Notifications | 0/5 | 5 | 0% |
 | Maintenance | 0/3 | 3 | 0% |
 | Documents | 0/3 | 3 | 0% |
 | Property Managers | 0/3 | 3 | 0% |
 | Manager Dashboard | 0/4 | 4 | 0% |
-| **TOTAL** | **47/70** | **70** | **67%** |
+| **TOTAL** | **52/75** | **75** | **69%** |
 
 ---
 
@@ -164,7 +165,29 @@ OTHER                  → Miscellaneous
 
 ---
 
-## 9. Conversations & Messages ❌ (0/5)
+## 9. Rent Schedule ✅ (5/5)
+
+| Endpoint | Status | API File | Notes |
+|----------|--------|----------|-------|
+| GET /api/leases/:id/rent-schedule | ✅ | paymentApi.ts | `paymentApi.getRentSchedule()` - Get full rent schedule |
+| GET /api/leases/:id/rent-schedule/current | ✅ | paymentApi.ts | `paymentApi.getCurrentRentDue()` - Get current month due |
+| POST /api/leases/:id/rent-schedule/:scheduleId/pay | ✅ | paymentApi.ts | `paymentApi.payRent()` - Pay specific month |
+| PATCH /api/leases/:id/rent-schedule/:scheduleId/waive | ✅ | paymentApi.ts | `paymentApi.waiveRent()` - Landlord waives rent |
+| GET /api/leases/rent-schedule/upcoming | ✅ | paymentApi.ts | `paymentApi.getUpcomingRentDues()` - Get all upcoming dues |
+
+### Rent Status Flow
+
+```
+UPCOMING → DUE → PAID
+            ↓
+         OVERDUE → PAID
+            ↓
+         WAIVED (by landlord)
+```
+
+---
+
+## 10. Conversations & Messages ❌ (0/5)
 
 | Endpoint | Status | API File | Notes |
 |----------|--------|----------|-------|
@@ -176,7 +199,7 @@ OTHER                  → Miscellaneous
 
 ---
 
-## 10. Notifications ❌ (0/5)
+## 11. Notifications ❌ (0/5)
 
 | Endpoint | Status | API File | Notes |
 |----------|--------|----------|-------|
@@ -188,7 +211,7 @@ OTHER                  → Miscellaneous
 
 ---
 
-## 11. Maintenance ❌ (0/3)
+## 12. Maintenance ❌ (0/3)
 
 | Endpoint | Status | API File | Notes |
 |----------|--------|----------|-------|
@@ -244,6 +267,9 @@ OTHER                  → Miscellaneous
 | 2026-01-04 | **Lease Flow Enhancement**: Added accept/reject/deadline-status (3 new endpoints), payments API (5 endpoints) |
 | - | New lease statuses: AWAITING_PAYMENT |
 | - | New lease fields: securityDeposit, acceptedAt, acceptanceDeadline, rejectedAt, rejectionReason, depositPaid, firstRentPaid, totalDueOnAcceptance, totalPaidOnAcceptance |
+| 2026-01-04 | **Rent Schedule APIs (5)**: getRentSchedule, getCurrentRentDue, payRent, waiveRent, getUpcomingRentDues |
+| - | Updated TenantPayments.tsx with rent schedule timeline view |
+| - | Added RentPaymentModal component for paying specific months
 
 ---
 

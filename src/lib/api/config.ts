@@ -61,6 +61,13 @@ export const API_ENDPOINTS = {
   PAYMENT_ACCEPTANCE: (leaseId: number) => `/api/payments/lease/${leaseId}/acceptance-payment`,
   PAYMENT_SUMMARY: (leaseId: number) => `/api/payments/lease/${leaseId}/summary`,
   PAYMENT_TENANT_PAY: (leaseId: number) => `/api/payments/lease/${leaseId}/pay`,
+
+  // Rent Schedule
+  RENT_SCHEDULE: (leaseId: number) => `/api/leases/${leaseId}/rent-schedule`,
+  RENT_SCHEDULE_CURRENT: (leaseId: number) => `/api/leases/${leaseId}/rent-schedule/current`,
+  RENT_SCHEDULE_PAY: (leaseId: number, scheduleId: number) => `/api/leases/${leaseId}/rent-schedule/${scheduleId}/pay`,
+  RENT_SCHEDULE_WAIVE: (leaseId: number, scheduleId: number) => `/api/leases/${leaseId}/rent-schedule/${scheduleId}/waive`,
+  RENT_SCHEDULE_UPCOMING: `/api/leases/rent-schedule/upcoming`,
 } as const;
 
 // Token storage keys

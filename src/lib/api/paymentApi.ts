@@ -5,6 +5,7 @@ import { LeaseResponseDTO } from "./leaseApi";
 // Payment Types
 export type PaymentType = 'RENT' | 'DEPOSIT' | 'DEPOSIT_AND_FIRST_RENT' | 'LATE_FEE' | 'MAINTENANCE_FEE' | 'OTHER';
 export type PaymentStatus = 'PENDING' | 'COMPLETED' | 'FAILED' | 'OVERDUE' | 'REFUNDED';
+export type RentStatus = 'UPCOMING' | 'DUE' | 'PAID' | 'PARTIAL' | 'OVERDUE' | 'WAIVED';
 
 export interface PaymentResponseDTO {
   id: number;
@@ -60,6 +61,48 @@ export interface TenantPayRequestDTO {
   description?: string;
 }
 
+// Rent Schedule Types
+export interface RentScheduleItemDTO {
+  id: number;
+  dueDate: string;
+  periodStart: string;
+  periodEnd: string;
+  amountDue: number;
+  amountPaid: number;
+  status: RentStatus;
+  paidAt: string | null;
+  paymentId: number | null;
+  daysUntilDue: number | null;
+  daysOverdue: number | null;
+  gracePeriodEnds: string | null;
+  lateFeeAmount: number | null;
+  lateFeeApplied: boolean;
+}
+
+export interface RentScheduleDTO {
+  leaseId: number;
+  rentAmount: number;
+  totalMonths: number;
+  paidMonths: number;
+  upcomingMonths: number;
+  overdueMonths: number;
+  schedule: RentScheduleItemDTO[];
+}
+
+export interface PayRentRequestDTO {
+  amount: number;
+  paymentMethod?: string;
+}
+
+export interface PayRentResponseDTO {
+  rentSchedule: RentScheduleItemDTO;
+  payment: PaymentResponseDTO;
+}
+
+export interface WaiveRentRequestDTO {
+  reason: string;
+}
+
 export const paymentApi = {
   // Get payment history for a lease
   getPaymentsForLease: (leaseId: number): Promise<PaymentResponseDTO[]> => {
@@ -84,5 +127,32 @@ export const paymentApi = {
   // Landlord logs a manual payment
   logPayment: (leaseId: number, data: LogPaymentRequestDTO): Promise<PaymentResponseDTO> => {
     return api.post<PaymentResponseDTO>(API_ENDPOINTS.PAYMENTS_FOR_LEASE(leaseId), data);
+  },
+
+  // ==================== Rent Schedule APIs ====================
+
+  // Get full rent schedule for a lease
+  getRentSchedule: (leaseId: number): Promise<RentScheduleDTO> => {
+    return api.get<RentScheduleDTO>(API_ENDPOINTS.RENT_SCHEDULE(leaseId));
+  },
+
+  // Get current month's rent due
+  getCurrentRentDue: (leaseId: number): Promise<RentScheduleItemDTO> => {
+    return api.get<RentScheduleItemDTO>(API_ENDPOINTS.RENT_SCHEDULE_CURRENT(leaseId));
+  },
+
+  // Tenant pays specific month's rent
+  payRent: (leaseId: number, scheduleId: number, data: PayRentRequestDTO): Promise<PayRentResponseDTO> => {
+    return api.post<PayRentResponseDTO>(API_ENDPOINTS.RENT_SCHEDULE_PAY(leaseId, scheduleId), data);
+  },
+
+  // Landlord waives rent for a specific month
+  waiveRent: (leaseId: number, scheduleId: number, data: WaiveRentRequestDTO): Promise<RentScheduleItemDTO> => {
+    return api.patch<RentScheduleItemDTO>(API_ENDPOINTS.RENT_SCHEDULE_WAIVE(leaseId, scheduleId), data);
+  },
+
+  // Get all upcoming rent dues for tenant
+  getUpcomingRentDues: (): Promise<RentScheduleItemDTO[]> => {
+    return api.get<RentScheduleItemDTO[]>(API_ENDPOINTS.RENT_SCHEDULE_UPCOMING);
   },
 };
