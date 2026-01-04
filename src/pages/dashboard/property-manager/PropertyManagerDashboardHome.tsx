@@ -6,9 +6,9 @@ import {
   getPropertiesForManager, 
   getApplicationsForManager, 
   getLeasesForManager, 
-  getMaintenanceForManager,
-  getConversationsForManager 
+  getMaintenanceForManager
 } from '@/lib/mockDatabase';
+import { conversationsApi } from '@/lib/api/conversationsApi';
 import { Property } from '@/types/property';
 import { Application } from '@/types/tenant';
 import { LeaseAgreement } from '@/types/landlord';
@@ -54,8 +54,11 @@ export default function PropertyManagerDashboardHome() {
       setLeases(getLeasesForManager(user.id));
       const maintenance = getMaintenanceForManager(user.id);
       setMaintenanceCount(maintenance.filter(m => m.status === 'open').length);
-      const conversations = getConversationsForManager(user.id);
-      setUnreadMessages(conversations.reduce((acc, conv) => acc + conv.unreadCount, 0));
+      
+      // Fetch unread count from API
+      conversationsApi.getUnreadCount()
+        .then(response => setUnreadMessages(response.unreadCount))
+        .catch(err => console.error('Failed to fetch unread count:', err));
     }
   }, [user]);
 

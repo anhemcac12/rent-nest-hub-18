@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { format, parseISO, differenceInDays } from 'date-fns';
 import {
@@ -8,6 +9,7 @@ import {
   ArrowRight,
   Calendar,
   MapPin,
+  MessageSquare,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,6 +18,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { StatsCard } from '@/components/dashboard/StatsCard';
 import { ActivityFeed } from '@/components/dashboard/ActivityFeed';
 import { useAuth } from '@/contexts/AuthContext';
+import { conversationsApi } from '@/lib/api/conversationsApi';
 import {
   mockRentals,
   mockPayments,
@@ -26,6 +29,14 @@ import {
 
 export default function TenantDashboardHome() {
   const { user } = useAuth();
+  const [unreadMessages, setUnreadMessages] = useState(0);
+
+  useEffect(() => {
+    // Fetch unread count from API
+    conversationsApi.getUnreadCount()
+      .then(response => setUnreadMessages(response.unreadCount))
+      .catch(err => console.error('Failed to fetch unread count:', err));
+  }, []);
 
   const currentRental = mockRentals.find((r) => r.status === 'active');
   const pendingPayment = mockPayments.find((p) => p.status === 'pending');
@@ -212,10 +223,13 @@ export default function TenantDashboardHome() {
                   </Button>
                 </Link>
                 <Link to="/dashboard/messages">
-                  <Button variant="outline" className="w-full h-auto py-4 flex-col gap-2">
-                    <Badge variant="secondary" className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs">
-                      1
-                    </Badge>
+                  <Button variant="outline" className="w-full h-auto py-4 flex-col gap-2 relative">
+                    {unreadMessages > 0 && (
+                      <Badge variant="default" className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs">
+                        {unreadMessages}
+                      </Badge>
+                    )}
+                    <MessageSquare className="h-5 w-5" />
                     <span className="text-xs">Messages</span>
                   </Button>
                 </Link>
