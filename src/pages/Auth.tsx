@@ -44,6 +44,9 @@ export default function Auth() {
     setError(null);
     setIsSubmitting(true);
 
+    // Regex: At least 8 chars, 1 uppercase, 1 lowercase, 1 number, 1 special char
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
+
     try {
       if (mode === "signup") {
         if (formData.password !== formData.confirmPassword) {
@@ -51,11 +54,17 @@ export default function Auth() {
           setIsSubmitting(false);
           return;
         }
-        if (formData.password.length < 6) {
-          setError("Password must be at least 6 characters");
+
+        // --- NEW VALIDATION LOGIC START ---
+        if (!passwordRegex.test(formData.password)) {
+          setError(
+            "Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character.",
+          );
           setIsSubmitting(false);
           return;
         }
+        // --- NEW VALIDATION LOGIC END ---
+
         if (!formData.agreeToTerms) {
           setError("Please agree to the Terms of Service");
           setIsSubmitting(false);
