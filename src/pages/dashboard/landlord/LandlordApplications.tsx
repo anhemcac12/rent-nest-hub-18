@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Check, X, Clock, MessageSquare, ChevronDown } from 'lucide-react';
+import { Check, X, Clock, MessageSquare, ChevronDown, FileText } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -12,6 +12,8 @@ import {
   LeaseApplicationStatus 
 } from '@/lib/api/leaseApplicationApi';
 import { propertyApi } from '@/lib/api/propertyApi';
+import { leaseApi, CreateLeaseRequestDTO } from '@/lib/api/leaseApi';
+import { fileApi } from '@/lib/api/fileApi';
 import { ApiError } from '@/lib/api/client';
 import { 
   Dialog, 
@@ -22,9 +24,15 @@ import {
   DialogTitle 
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { toast } from '@/hooks/use-toast';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
+import { CalendarIcon, Upload } from 'lucide-react';
 
 export default function LandlordApplications() {
   const { user } = useAuth();
@@ -36,16 +44,26 @@ export default function LandlordApplications() {
   const [expandedApp, setExpandedApp] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isActioning, setIsActioning] = useState(false);
+  
+  // Lease creation state
+  const [creatingLeaseForApp, setCreatingLeaseForApp] = useState<LeaseApplicationResponseDTO | null>(null);
+  const [leaseRent, setLeaseRent] = useState('');
+  const [startDate, setStartDate] = useState<Date>(new Date());
+  const [endDate, setEndDate] = useState<Date>(() => {
+    const date = new Date();
+    date.setFullYear(date.getFullYear() + 1);
+    return date;
+  });
+  const [contractFile, setContractFile] = useState<File | null>(null);
+  const [isCreatingLease, setIsCreatingLease] = useState(false);
 
   const fetchData = async () => {
     if (!user?.id) return;
 
     try {
       setIsLoading(true);
-      // First get all landlord's properties
       const propertiesData = await propertyApi.getPropertiesByLandlord(Number(user.id));
 
-      // Then get applications for each property
       const allApplications: LeaseApplicationResponseDTO[] = [];
       for (const property of propertiesData) {
         try {
@@ -83,8 +101,11 @@ export default function LandlordApplications() {
         await leaseApplicationApi.approveApplication(reviewingApp.id);
         toast({
           title: 'Application Approved',
-          description: 'The tenant has been notified.',
+          description: 'You can now create a lease agreement for this tenant.',
         });
+        // After approval, show lease creation dialog
+        setCreatingLeaseForApp(reviewingApp);
+        setLeaseRent(reviewingApp.property.price?.toString() || '');
       } else {
         await leaseApplicationApi.rejectApplication(reviewingApp.id);
         toast({
@@ -108,6 +129,60 @@ export default function LandlordApplications() {
       setActionType(null);
       setMessage('');
     }
+  };
+
+  const handleCreateLease = async () => {
+    if (!creatingLeaseForApp) return;
+
+    setIsCreatingLease(true);
+
+    try {
+      // Step 1: Create the lease draft
+      const leaseData: CreateLeaseRequestDTO = {
+        approvedApplicationId: creatingLeaseForApp.id,
+        startDate: format(startDate, 'yyyy-MM-dd'),
+        endDate: format(endDate, 'yyyy-MM-dd'),
+        rentAmount: parseFloat(leaseRent),
+      };
+
+      const createdLease = await leaseApi.createLease(leaseData);
+
+      // Step 2: If contract file is provided, upload and attach
+      if (contractFile) {
+        const uploadedDoc = await fileApi.upload(contractFile, 'LEASE_PDF');
+        await leaseApi.attachContract(createdLease.id, uploadedDoc.documentId);
+      }
+
+      // Step 3: Activate the lease
+      await leaseApi.activateLease(createdLease.id);
+
+      toast({
+        title: 'Lease Created & Activated',
+        description: 'The lease is now active and the property is marked as rented.',
+      });
+
+      setCreatingLeaseForApp(null);
+      setContractFile(null);
+      fetchData();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsCreatingLease(false);
+    }
+  };
+
+  const openLeaseCreationForApproved = (app: LeaseApplicationResponseDTO) => {
+    setCreatingLeaseForApp(app);
+    setLeaseRent(app.property.price?.toString() || '');
+    setStartDate(new Date());
+    const defaultEnd = new Date();
+    defaultEnd.setFullYear(defaultEnd.getFullYear() + 1);
+    setEndDate(defaultEnd);
+    setContractFile(null);
   };
 
   const getStatusBadge = (status: LeaseApplicationStatus) => {
@@ -255,7 +330,7 @@ export default function LandlordApplications() {
                             </div>
                           )}
 
-                          {/* Actions */}
+                          {/* Actions for Pending */}
                           {app.status === 'PENDING' && (
                             <div className="flex items-center gap-3 pt-2">
                               <Button 
@@ -278,6 +353,19 @@ export default function LandlordApplications() {
                               >
                                 <X className="h-4 w-4 mr-2" />
                                 Reject
+                              </Button>
+                            </div>
+                          )}
+
+                          {/* Actions for Approved - Create Lease */}
+                          {app.status === 'APPROVED' && (
+                            <div className="flex items-center gap-3 pt-2">
+                              <Button 
+                                className="flex-1"
+                                onClick={() => openLeaseCreationForApproved(app)}
+                              >
+                                <FileText className="h-4 w-4 mr-2" />
+                                Create Lease Agreement
                               </Button>
                             </div>
                           )}
@@ -305,7 +393,7 @@ export default function LandlordApplications() {
             </DialogTitle>
             <DialogDescription>
               {actionType === 'approve' 
-                ? 'The tenant will be notified of your approval.'
+                ? 'After approval, you can create a lease agreement for this tenant.'
                 : 'The tenant will be notified of your decision.'}
             </DialogDescription>
           </DialogHeader>
@@ -336,6 +424,148 @@ export default function LandlordApplications() {
               variant={actionType === 'approve' ? 'default' : 'destructive'}
             >
               {isActioning ? 'Processing...' : (actionType === 'approve' ? 'Approve Application' : 'Reject Application')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Lease Dialog */}
+      <Dialog open={!!creatingLeaseForApp} onOpenChange={(open) => {
+        if (!open) {
+          setCreatingLeaseForApp(null);
+          setContractFile(null);
+        }
+      }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Create Lease Agreement</DialogTitle>
+            <DialogDescription>
+              Set the lease terms for {creatingLeaseForApp?.property.title}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            {/* Property Info */}
+            <div className="flex items-center gap-4 p-3 bg-muted/50 rounded-lg">
+              <img
+                src={creatingLeaseForApp?.property.coverImageUrl || '/placeholder.svg'}
+                alt={creatingLeaseForApp?.property.title}
+                className="h-14 w-14 rounded-lg object-cover"
+              />
+              <div>
+                <h4 className="font-semibold">{creatingLeaseForApp?.property.title}</h4>
+                <p className="text-sm text-muted-foreground">
+                  Tenant: {creatingLeaseForApp?.tenant.fullName}
+                </p>
+              </div>
+            </div>
+
+            {/* Rent Amount */}
+            <div className="space-y-2">
+              <Label htmlFor="leaseRent">Monthly Rent ($)</Label>
+              <Input
+                id="leaseRent"
+                type="number"
+                value={leaseRent}
+                onChange={(e) => setLeaseRent(e.target.value)}
+                min={0}
+              />
+            </div>
+
+            {/* Date Range */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Start Date</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        'w-full justify-start text-left font-normal',
+                        !startDate && 'text-muted-foreground'
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {startDate ? format(startDate, 'PPP') : 'Pick date'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={startDate}
+                      onSelect={(date) => date && setStartDate(date)}
+                      initialFocus
+                      className="p-3 pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <div className="space-y-2">
+                <Label>End Date</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        'w-full justify-start text-left font-normal',
+                        !endDate && 'text-muted-foreground'
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {endDate ? format(endDate, 'PPP') : 'Pick date'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={endDate}
+                      onSelect={(date) => date && setEndDate(date)}
+                      disabled={(date) => date < startDate}
+                      initialFocus
+                      className="p-3 pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
+
+            {/* Contract Upload */}
+            <div className="space-y-2">
+              <Label>Contract Document (Optional)</Label>
+              <div
+                className="border-2 border-dashed rounded-lg p-4 text-center cursor-pointer hover:border-primary transition-colors"
+                onClick={() => document.getElementById('contract-upload')?.click()}
+              >
+                <Upload className="h-6 w-6 mx-auto mb-2 text-muted-foreground" />
+                <p className="text-sm text-muted-foreground">
+                  {contractFile ? contractFile.name : 'Click to upload contract PDF'}
+                </p>
+              </div>
+              <input
+                id="contract-upload"
+                type="file"
+                accept=".pdf"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) setContractFile(file);
+                }}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setCreatingLeaseForApp(null);
+              setContractFile(null);
+            }}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleCreateLease}
+              disabled={isCreatingLease || !leaseRent}
+            >
+              {isCreatingLease ? 'Creating...' : 'Create & Activate Lease'}
             </Button>
           </DialogFooter>
         </DialogContent>

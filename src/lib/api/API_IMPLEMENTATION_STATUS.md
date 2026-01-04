@@ -2,7 +2,7 @@
 
 This file tracks which APIs have been implemented in the frontend and are connected to the backend.
 
-**Last Updated:** 2026-01-03
+**Last Updated:** 2026-01-04
 
 ---
 
@@ -26,7 +26,7 @@ This file tracks which APIs have been implemented in the frontend and are connec
 | Properties | 8/8 | 8 | 100% |
 | Saved Properties | 4/4 | 4 | 100% |
 | Applications | 6/6 | 6 | 100% |
-| Leases | 0/7 | 7 | 0% |
+| Lease Agreements | 8/8 | 8 | 100% |
 | Conversations/Messages | 0/5 | 5 | 0% |
 | Notifications | 0/5 | 5 | 0% |
 | Maintenance | 0/3 | 3 | 0% |
@@ -34,7 +34,7 @@ This file tracks which APIs have been implemented in the frontend and are connec
 | Documents | 0/3 | 3 | 0% |
 | Property Managers | 0/3 | 3 | 0% |
 | Manager Dashboard | 0/4 | 4 | 0% |
-| **TOTAL** | **31/66** | **66** | **47%** |
+| **TOTAL** | **39/64** | **64** | **61%** |
 
 ---
 
@@ -112,17 +112,18 @@ This file tracks which APIs have been implemented in the frontend and are connec
 
 ---
 
-## 7. Leases ❌ (0/7)
+## 7. Lease Agreements ✅ (8/8)
 
 | Endpoint | Status | API File | Notes |
 |----------|--------|----------|-------|
-| GET /leases | ❌ | - | Get user's leases |
-| GET /landlord/leases | ❌ | - | Get landlord's leases |
-| POST /landlord/leases | ❌ | - | Create lease |
-| PUT /landlord/leases/:id/send | ❌ | - | Send lease to tenant |
-| PUT /leases/:id/accept | ❌ | - | Accept lease (tenant) |
-| PUT /leases/:id/reject | ❌ | - | Reject lease (tenant) |
-| PUT /leases/:id/pay | ❌ | - | Process payment |
+| POST /api/lease-agreements | ✅ | leaseApi.ts | `leaseApi.createLease()` |
+| GET /api/lease-agreements/:id | ✅ | leaseApi.ts | `leaseApi.getLeaseById()` |
+| GET /api/lease-agreements/my | ✅ | leaseApi.ts | `leaseApi.getMyLeases()` |
+| GET /api/lease-agreements/for-landlord | ✅ | leaseApi.ts | `leaseApi.getLeasesForLandlord()` |
+| GET /api/lease-agreements/for-property/:id | ✅ | leaseApi.ts | `leaseApi.getLeasesForProperty()` |
+| PATCH /api/lease-agreements/:id/contract | ✅ | leaseApi.ts | `leaseApi.attachContract()` |
+| PATCH /api/lease-agreements/:id/activate | ✅ | leaseApi.ts | `leaseApi.activateLease()` |
+| PATCH /api/lease-agreements/:id/terminate | ✅ | leaseApi.ts | `leaseApi.terminateLease()` |
 
 ---
 
@@ -211,13 +212,13 @@ This file tracks which APIs have been implemented in the frontend and are connec
 | - | Property APIs (8): search, get, featured, by landlord, create, update, delete, assign/remove manager |
 | 2026-01-03 | Saved Properties APIs (4): get saved, save, unsave, check status |
 | 2026-01-03 | Lease Applications APIs (6): create, get my, get for property, approve, reject, cancel |
+| 2026-01-04 | Lease Agreements APIs (8): create, get by id, get my, get for landlord, get for property, attach contract, activate, terminate |
 
 ---
 
 ## Next Priority APIs to Implement
 
-1. **Leases** - Enable lease management
-2. **Conversations/Messages** - Enable landlord-tenant communication
-3. **Notifications** - Enable real-time notifications
-4. **Maintenance** - Enable maintenance request workflow
-5. **Payments** - Enable payment processing
+1. **Conversations/Messages** - Enable landlord-tenant communication
+2. **Notifications** - Enable real-time notifications
+3. **Maintenance** - Enable maintenance request workflow
+4. **Payments** - Enable payment processing
