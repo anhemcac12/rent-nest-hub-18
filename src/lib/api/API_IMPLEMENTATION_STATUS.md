@@ -29,13 +29,13 @@ This file tracks which APIs have been implemented in the frontend and are connec
 | Lease Agreements | 11/11 | 11 | 100% |
 | Payments | 5/5 | 5 | 100% |
 | Rent Schedule | 5/5 | 5 | 100% |
-| Conversations/Messages | 0/5 | 5 | 0% |
+| Conversations/Messages | 8/8 | 8 | 100% |
 | Notifications | 0/5 | 5 | 0% |
 | Maintenance | 0/3 | 3 | 0% |
 | Documents | 0/3 | 3 | 0% |
 | Property Managers | 0/3 | 3 | 0% |
 | Manager Dashboard | 0/4 | 4 | 0% |
-| **TOTAL** | **52/75** | **75** | **69%** |
+| **TOTAL** | **60/75** | **75** | **80%** |
 
 ---
 
@@ -187,15 +187,32 @@ UPCOMING → DUE → PAID
 
 ---
 
-## 10. Conversations & Messages ❌ (0/5)
+## 10. Conversations & Messages ✅ (8/8)
 
 | Endpoint | Status | API File | Notes |
 |----------|--------|----------|-------|
-| GET /conversations | ❌ | - | Get all conversations |
-| GET /conversations/:id | ❌ | - | Get conversation with messages |
-| POST /conversations | ❌ | - | Create conversation |
-| POST /conversations/:id/messages | ❌ | - | Send message |
-| GET /conversations/property/:propertyId | ❌ | - | Get/check property conversation |
+| GET /api/conversations | ✅ | conversationsApi.ts | `conversationsApi.getConversations()` - Get all user conversations |
+| GET /api/conversations/:id | ✅ | conversationsApi.ts | `conversationsApi.getConversation()` - Get conversation with messages |
+| POST /api/conversations | ✅ | conversationsApi.ts | `conversationsApi.startConversation()` - Tenant starts new conversation |
+| POST /api/conversations/:id/messages | ✅ | conversationsApi.ts | `conversationsApi.sendMessage()` - Send message in conversation |
+| PATCH /api/conversations/:id/read | ✅ | conversationsApi.ts | `conversationsApi.markConversationAsRead()` - Mark messages as read |
+| GET /api/conversations/property/:propertyId | ✅ | conversationsApi.ts | `conversationsApi.checkExistingConversation()` - Check if conversation exists |
+| GET /api/conversations/unread-count | ✅ | conversationsApi.ts | `conversationsApi.getUnreadCount()` - Get global unread count |
+| DELETE /api/conversations/:id | ✅ | conversationsApi.ts | `conversationsApi.deleteConversation()` - Soft delete conversation |
+
+### Participant Roles
+
+```
+TENANT           → Started the conversation about a property
+LANDLORD         → Property owner, receives tenant inquiries
+PROPERTY_MANAGER → Assigned to manage the property, can participate in conversations
+```
+
+### Conversation Status Flow
+
+```
+ACTIVE → (user deletes) → ARCHIVED (soft delete, only for that user)
+```
 
 ---
 
@@ -269,12 +286,17 @@ UPCOMING → DUE → PAID
 | - | New lease fields: securityDeposit, acceptedAt, acceptanceDeadline, rejectedAt, rejectionReason, depositPaid, firstRentPaid, totalDueOnAcceptance, totalPaidOnAcceptance |
 | 2026-01-04 | **Rent Schedule APIs (5)**: getRentSchedule, getCurrentRentDue, payRent, waiveRent, getUpcomingRentDues |
 | - | Updated TenantPayments.tsx with rent schedule timeline view |
-| - | Added RentPaymentModal component for paying specific months
+| - | Added RentPaymentModal component for paying specific months |
+| 2026-01-04 | **Conversations/Messages APIs (8)**: Full implementation |
+| - | Created conversationsApi.ts with all endpoints |
+| - | Updated TenantMessages, LandlordMessages, PropertyManagerMessages components |
+| - | Updated ContactLandlordModal to use real API with existing conversation check |
+| - | All 3 roles (Tenant, Landlord, Property Manager) fully supported |
 
 ---
 
 ## Next Priority APIs to Implement
 
-1. **Conversations/Messages** - Enable landlord-tenant communication
-2. **Notifications** - Enable real-time notifications
-3. **Maintenance** - Enable maintenance request workflow
+1. **Notifications** - Enable real-time notifications
+2. **Maintenance** - Enable maintenance request workflow
+3. **Documents** - Document management for leases

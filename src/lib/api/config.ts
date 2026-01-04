@@ -68,6 +68,14 @@ export const API_ENDPOINTS = {
   RENT_SCHEDULE_PAY: (leaseId: number, scheduleId: number) => `/api/leases/${leaseId}/rent-schedule/${scheduleId}/pay`,
   RENT_SCHEDULE_WAIVE: (leaseId: number, scheduleId: number) => `/api/leases/${leaseId}/rent-schedule/${scheduleId}/waive`,
   RENT_SCHEDULE_UPCOMING: `/api/leases/rent-schedule/upcoming`,
+
+  // Conversations & Messages
+  CONVERSATIONS: "/api/conversations",
+  CONVERSATION_DETAIL: (conversationId: number) => `/api/conversations/${conversationId}`,
+  CONVERSATION_MESSAGES: (conversationId: number) => `/api/conversations/${conversationId}/messages`,
+  CONVERSATION_READ: (conversationId: number) => `/api/conversations/${conversationId}/read`,
+  CONVERSATION_BY_PROPERTY: (propertyId: number) => `/api/conversations/property/${propertyId}`,
+  CONVERSATIONS_UNREAD_COUNT: "/api/conversations/unread-count",
 } as const;
 
 // Token storage keys
