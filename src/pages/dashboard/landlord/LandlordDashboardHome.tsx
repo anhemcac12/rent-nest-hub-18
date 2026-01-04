@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Building2, FileText, ScrollText, MessageSquare, TrendingUp, Users } from 'lucide-react';
+import { Building2, FileText, ScrollText, MessageSquare } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
-import { getLandlordProperties, getApplicationsForLandlord, getLeaseAgreements, getLandlordConversations } from '@/lib/mockDatabase';
+import { getLandlordProperties, getApplicationsForLandlord, getLeaseAgreements } from '@/lib/mockDatabase';
+import { conversationsApi } from '@/lib/api/conversationsApi';
 import { Property } from '@/types/property';
 import { Application } from '@/types/tenant';
 import { LeaseAgreement } from '@/types/landlord';
@@ -49,8 +50,11 @@ export default function LandlordDashboardHome() {
       setProperties(getLandlordProperties(user.id));
       setApplications(getApplicationsForLandlord(user.id));
       setLeases(getLeaseAgreements(user.id));
-      const conversations = getLandlordConversations(user.id);
-      setUnreadMessages(conversations.reduce((acc, conv) => acc + conv.unreadCount, 0));
+      
+      // Fetch unread count from API
+      conversationsApi.getUnreadCount()
+        .then(response => setUnreadMessages(response.unreadCount))
+        .catch(err => console.error('Failed to fetch unread count:', err));
     }
   }, [user]);
 

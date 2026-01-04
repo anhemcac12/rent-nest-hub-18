@@ -30,6 +30,7 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import { getUnreadNotificationCount } from '@/lib/mockDatabase';
+import { conversationsApi } from '@/lib/api/conversationsApi';
 import { Badge } from '@/components/ui/badge';
 
 const mainNavItems = [
@@ -38,8 +39,8 @@ const mainNavItems = [
   { title: 'Applications', url: '/dashboard/pm-applications', icon: FileText },
   { title: 'Lease Agreements', url: '/dashboard/pm-leases', icon: ScrollText },
   { title: 'Maintenance', url: '/dashboard/pm-maintenance', icon: Wrench },
-  { title: 'Messages', url: '/dashboard/pm-messages', icon: MessageSquare },
-  { title: 'Notifications', url: '/dashboard/notifications', icon: Bell, showBadge: true },
+  { title: 'Messages', url: '/dashboard/pm-messages', icon: MessageSquare, badgeType: 'messages' },
+  { title: 'Notifications', url: '/dashboard/notifications', icon: Bell, badgeType: 'notifications' },
 ];
 
 const accountNavItems = [
@@ -51,11 +52,16 @@ export function PropertyManagerSidebar() {
   const { user, logout } = useAuth();
   const { state, toggleSidebar } = useSidebar();
   const isCollapsed = state === 'collapsed';
-  const [unreadCount, setUnreadCount] = useState(0);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [unreadMessages, setUnreadMessages] = useState(0);
 
   useEffect(() => {
     if (user) {
-      setUnreadCount(getUnreadNotificationCount(user.id));
+      setUnreadNotifications(getUnreadNotificationCount(user.id));
+      
+      conversationsApi.getUnreadCount()
+        .then(response => setUnreadMessages(response.unreadCount))
+        .catch(err => console.error('Failed to fetch unread messages:', err));
     }
   }, [user, location.pathname]);
 
@@ -108,9 +114,14 @@ export function PropertyManagerSidebar() {
                         <item.icon className="h-4 w-4" />
                         <span>{item.title}</span>
                       </span>
-                      {item.showBadge && unreadCount > 0 && !isCollapsed && (
+                      {item.badgeType === 'notifications' && unreadNotifications > 0 && !isCollapsed && (
                         <Badge variant="destructive" className="text-xs px-1.5 py-0.5 h-5">
-                          {unreadCount > 9 ? '9+' : unreadCount}
+                          {unreadNotifications > 9 ? '9+' : unreadNotifications}
+                        </Badge>
+                      )}
+                      {item.badgeType === 'messages' && unreadMessages > 0 && !isCollapsed && (
+                        <Badge variant="default" className="text-xs px-1.5 py-0.5 h-5">
+                          {unreadMessages > 9 ? '9+' : unreadMessages}
                         </Badge>
                       )}
                     </NavLink>
