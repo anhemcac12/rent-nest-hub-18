@@ -1,12 +1,16 @@
 # Conversations & Messages API Specification
 
-Complete backend specification for real-time messaging between tenants and landlords.
+Complete backend specification for real-time messaging between tenants, landlords, and property managers.
 
 ---
 
 ## Overview
 
-The messaging system enables communication between tenants and landlords regarding specific properties. Each conversation is tied to a property and involves exactly two participants: one tenant and one landlord.
+The messaging system enables communication between tenants and property owners/managers regarding specific properties. Each conversation is tied to a property and can involve:
+- **Tenant** ↔ **Landlord**: Direct communication
+- **Tenant** ↔ **Property Manager**: Manager handles communications for assigned properties
+
+Property Managers can view and respond to conversations for properties they manage, acting on behalf of the landlord.
 
 ---
 
@@ -22,6 +26,23 @@ The messaging system enables communication between tenants and landlords regardi
 | GET | `/api/conversations/property/{propertyId}` | Tenant | Check if conversation exists for property |
 | GET | `/api/conversations/unread-count` | All | Get total unread message count |
 | DELETE | `/api/conversations/{id}` | Participant | Soft delete conversation |
+
+---
+
+## Role Permissions
+
+| Action | Tenant | Landlord | Property Manager |
+|--------|--------|----------|------------------|
+| Start conversation | ✅ (about any property) | ❌ | ❌ |
+| View conversations | ✅ (own only) | ✅ (own properties) | ✅ (assigned properties) |
+| Send messages | ✅ (own only) | ✅ (own properties) | ✅ (assigned properties) |
+| Mark as read | ✅ (own only) | ✅ (own properties) | ✅ (assigned properties) |
+| Delete conversation | ✅ (own only) | ✅ (own only) | ❌ |
+
+**Property Manager Access Logic:**
+- PM can access conversations where `property_id` is in their assigned properties
+- PM messages appear with their own name (not landlord's name)
+- PM role is indicated in UI so tenant knows who they're talking to
 
 ---
 
@@ -60,6 +81,9 @@ CREATE TABLE messages (
     conversation_id BIGINT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
     sender_id BIGINT NOT NULL REFERENCES users(id),
     
+    -- Sender role for display purposes
+    sender_role VARCHAR(20) NOT NULL,        -- TENANT, LANDLORD, PROPERTY_MANAGER
+    
     -- Content
     content TEXT NOT NULL,
     
@@ -73,6 +97,17 @@ CREATE TABLE messages (
     created_at TIMESTAMP DEFAULT NOW()
 );
 
+-- Property Managers assignment table (already exists)
+CREATE TABLE property_managers (
+    id BIGSERIAL PRIMARY KEY,
+    property_id BIGINT NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
+    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    role VARCHAR(20) DEFAULT 'manager',      -- manager, assistant
+    added_at TIMESTAMP DEFAULT NOW(),
+    
+    UNIQUE(property_id, user_id)
+);
+
 -- Indexes for performance
 CREATE INDEX idx_conversations_tenant ON conversations(tenant_id);
 CREATE INDEX idx_conversations_landlord ON conversations(landlord_id);
@@ -80,6 +115,8 @@ CREATE INDEX idx_conversations_property ON conversations(property_id);
 CREATE INDEX idx_messages_conversation ON messages(conversation_id);
 CREATE INDEX idx_messages_sender ON messages(sender_id);
 CREATE INDEX idx_messages_unread ON messages(conversation_id, read_at) WHERE read_at IS NULL;
+CREATE INDEX idx_property_managers_user ON property_managers(user_id);
+CREATE INDEX idx_property_managers_property ON property_managers(property_id);
 ```
 
 ### Enums
@@ -90,6 +127,62 @@ public enum ConversationStatus {
     ARCHIVED,    // Archived by user (can be restored)
     DELETED      // Soft deleted
 }
+
+public enum SenderRole {
+    TENANT,
+    LANDLORD,
+    PROPERTY_MANAGER
+}
+```
+
+---
+
+## Authorization Logic
+
+### Checking Conversation Access
+
+```java
+public boolean canAccessConversation(Long userId, UserRole userRole, Conversation conv) {
+    // Tenant: must be the tenant in conversation
+    if (userRole == UserRole.TENANT) {
+        return conv.getTenantId().equals(userId);
+    }
+    
+    // Landlord: must own the property
+    if (userRole == UserRole.LANDLORD) {
+        return conv.getLandlordId().equals(userId);
+    }
+    
+    // Property Manager: must be assigned to the property
+    if (userRole == UserRole.PROPERTY_MANAGER) {
+        return propertyManagerRepository.existsByPropertyIdAndUserId(
+            conv.getPropertyId(), userId
+        );
+    }
+    
+    return false;
+}
+```
+
+### Get Conversations Query (By Role)
+
+```sql
+-- For TENANT: conversations where they are the tenant
+SELECT c.* FROM conversations c
+WHERE c.tenant_id = :userId
+  AND c.tenant_deleted_at IS NULL;
+
+-- For LANDLORD: conversations on their properties
+SELECT c.* FROM conversations c
+JOIN properties p ON c.property_id = p.id
+WHERE p.landlord_id = :userId
+  AND c.landlord_deleted_at IS NULL;
+
+-- For PROPERTY_MANAGER: conversations on assigned properties
+SELECT DISTINCT c.* FROM conversations c
+JOIN property_managers pm ON c.property_id = pm.property_id
+WHERE pm.user_id = :userId
+  AND c.landlord_deleted_at IS NULL;  -- Uses landlord delete flag
 ```
 
 ---
@@ -103,19 +196,20 @@ interface ConversationDTO {
     id: number;
     propertyId: number;
     propertyTitle: string;
-    propertyImage: string | null;      // First property image for avatar
+    propertyImage: string | null;
     
-    // Other participant info (NOT the current user)
-    participantId: number;
-    participantName: string;
-    participantAvatar: string | null;
-    participantRole: 'TENANT' | 'LANDLORD';
+    // Other participant(s) info - perspective depends on current user role
+    participants: ParticipantSummaryDTO[];
+    
+    // For simpler UX: primary contact (tenant for landlord/PM, landlord for tenant)
+    primaryParticipant: ParticipantSummaryDTO;
     
     // Preview
     subject: string | null;
-    lastMessage: string;               // Truncated to ~100 chars
-    lastMessageAt: string;             // ISO timestamp
+    lastMessage: string;
+    lastMessageAt: string;
     lastMessageSenderId: number;
+    lastMessageSenderRole: 'TENANT' | 'LANDLORD' | 'PROPERTY_MANAGER';
     
     // Unread
     unreadCount: number;
@@ -124,6 +218,13 @@ interface ConversationDTO {
     status: 'ACTIVE' | 'ARCHIVED';
     
     createdAt: string;
+}
+
+interface ParticipantSummaryDTO {
+    id: number;
+    fullName: string;
+    avatar: string | null;
+    role: 'TENANT' | 'LANDLORD' | 'PROPERTY_MANAGER';
 }
 ```
 
@@ -137,12 +238,13 @@ interface ConversationDetailDTO {
     propertyAddress: string;
     propertyImage: string | null;
     
-    // Participants
+    // All participants
     tenant: ParticipantDTO;
     landlord: ParticipantDTO;
+    propertyManagers: ParticipantDTO[];  // List of managers who can respond
     
     // Current user's role in this conversation
-    currentUserRole: 'TENANT' | 'LANDLORD';
+    currentUserRole: 'TENANT' | 'LANDLORD' | 'PROPERTY_MANAGER';
     
     subject: string | null;
     status: 'ACTIVE' | 'ARCHIVED';
@@ -159,8 +261,9 @@ interface ParticipantDTO {
     id: number;
     fullName: string;
     avatar: string | null;
-    email: string;          // For contact purposes
-    phone: string | null;   // Optional
+    email: string;
+    phone: string | null;
+    role: 'TENANT' | 'LANDLORD' | 'PROPERTY_MANAGER';
 }
 ```
 
@@ -173,11 +276,12 @@ interface MessageDTO {
     senderId: number;
     senderName: string;
     senderAvatar: string | null;
+    senderRole: 'TENANT' | 'LANDLORD' | 'PROPERTY_MANAGER';
     
     content: string;
     
-    isOwn: boolean;         // true if current user sent this
-    isRead: boolean;        // true if recipient has read
+    isOwn: boolean;
+    isRead: boolean;
     readAt: string | null;
     
     createdAt: string;
@@ -187,11 +291,11 @@ interface MessageDTO {
 ### Request DTOs
 
 ```typescript
-// Start new conversation
+// Start new conversation (Tenant only)
 interface CreateConversationRequest {
     propertyId: number;
-    subject?: string;       // Optional subject line
-    message: string;        // Initial message (required)
+    subject?: string;
+    message: string;
 }
 
 // Send message
@@ -212,7 +316,7 @@ interface CreateConversationResponse {
 
 ### 1. Get All Conversations
 
-Returns all conversations for the authenticated user (as tenant or landlord).
+Returns all conversations for the authenticated user based on their role.
 
 ```http
 GET /api/conversations
@@ -235,14 +339,25 @@ Authorization: Bearer {{token}}
             "propertyId": 5,
             "propertyTitle": "Modern Downtown Apartment",
             "propertyImage": "https://...",
-            "participantId": 10,
-            "participantName": "John Tenant",
-            "participantAvatar": "https://...",
-            "participantRole": "TENANT",
+            "participants": [
+                {
+                    "id": 10,
+                    "fullName": "John Tenant",
+                    "avatar": "https://...",
+                    "role": "TENANT"
+                }
+            ],
+            "primaryParticipant": {
+                "id": 10,
+                "fullName": "John Tenant",
+                "avatar": "https://...",
+                "role": "TENANT"
+            },
             "subject": "Question about parking",
             "lastMessage": "Hi, I wanted to ask about the parking situation...",
             "lastMessageAt": "2025-01-04T10:30:00Z",
             "lastMessageSenderId": 10,
+            "lastMessageSenderRole": "TENANT",
             "unreadCount": 2,
             "status": "ACTIVE",
             "createdAt": "2025-01-03T14:00:00Z"
@@ -255,12 +370,17 @@ Authorization: Bearer {{token}}
 }
 ```
 
-**Business Logic:**
-- For **landlords**: participantId = tenant, participantRole = "TENANT"
-- For **tenants**: participantId = landlord, participantRole = "LANDLORD"
+**Business Logic by Role:**
+
+| User Role | Sees | Primary Participant |
+|-----------|------|---------------------|
+| TENANT | Their own conversations | Landlord |
+| LANDLORD | Conversations on their properties | Tenant |
+| PROPERTY_MANAGER | Conversations on assigned properties | Tenant |
+
 - Sort by `lastMessageAt DESC` (most recent first)
-- Exclude conversations where user has soft-deleted
-- `unreadCount` = count of messages NOT sent by current user AND read_at IS NULL
+- Exclude soft-deleted conversations
+- `unreadCount` = messages NOT sent by current user AND `read_at IS NULL`
 
 ---
 
@@ -290,16 +410,28 @@ Authorization: Bearer {{token}}
         "fullName": "John Tenant",
         "avatar": "https://...",
         "email": "john@example.com",
-        "phone": "+1234567890"
+        "phone": "+1234567890",
+        "role": "TENANT"
     },
     "landlord": {
         "id": 3,
         "fullName": "Jane Landlord",
         "avatar": "https://...",
         "email": "jane@example.com",
-        "phone": "+1234567891"
+        "phone": "+1234567891",
+        "role": "LANDLORD"
     },
-    "currentUserRole": "LANDLORD",
+    "propertyManagers": [
+        {
+            "id": 7,
+            "fullName": "Mike Manager",
+            "avatar": "https://...",
+            "email": "mike@example.com",
+            "phone": "+1234567892",
+            "role": "PROPERTY_MANAGER"
+        }
+    ],
+    "currentUserRole": "PROPERTY_MANAGER",
     "subject": "Question about parking",
     "status": "ACTIVE",
     "messages": [
@@ -309,6 +441,7 @@ Authorization: Bearer {{token}}
             "senderId": 10,
             "senderName": "John Tenant",
             "senderAvatar": "https://...",
+            "senderRole": "TENANT",
             "content": "Thanks for the quick response!",
             "isOwn": false,
             "isRead": false,
@@ -318,9 +451,10 @@ Authorization: Bearer {{token}}
         {
             "id": 4,
             "conversationId": 1,
-            "senderId": 3,
-            "senderName": "Jane Landlord",
+            "senderId": 7,
+            "senderName": "Mike Manager",
             "senderAvatar": "https://...",
+            "senderRole": "PROPERTY_MANAGER",
             "content": "Yes, there's one assigned parking spot included.",
             "isOwn": true,
             "isRead": true,
@@ -335,12 +469,16 @@ Authorization: Bearer {{token}}
 ```
 
 **Errors:**
-- `403 Forbidden`: User is not a participant in this conversation
+- `403 Forbidden`: User is not authorized to access this conversation
 - `404 Not Found`: Conversation doesn't exist
 
-**Business Logic:**
-- Messages sorted by `created_at DESC` (newest first for infinite scroll)
-- Automatically mark incoming messages as read (optional - see endpoint #5)
+**Authorization Check:**
+```java
+// User must be:
+// 1. The tenant in this conversation, OR
+// 2. The landlord who owns the property, OR
+// 3. A property manager assigned to the property
+```
 
 ---
 
@@ -368,14 +506,25 @@ Content-Type: application/json
         "propertyId": 5,
         "propertyTitle": "Modern Downtown Apartment",
         "propertyImage": "https://...",
-        "participantId": 3,
-        "participantName": "Jane Landlord",
-        "participantAvatar": "https://...",
-        "participantRole": "LANDLORD",
+        "participants": [
+            {
+                "id": 3,
+                "fullName": "Jane Landlord",
+                "avatar": "https://...",
+                "role": "LANDLORD"
+            }
+        ],
+        "primaryParticipant": {
+            "id": 3,
+            "fullName": "Jane Landlord",
+            "avatar": "https://...",
+            "role": "LANDLORD"
+        },
         "subject": "Question about parking",
         "lastMessage": "Hi, I'm interested in the property...",
         "lastMessageAt": "2025-01-04T10:00:00Z",
         "lastMessageSenderId": 10,
+        "lastMessageSenderRole": "TENANT",
         "unreadCount": 0,
         "status": "ACTIVE",
         "createdAt": "2025-01-04T10:00:00Z"
@@ -386,6 +535,7 @@ Content-Type: application/json
         "senderId": 10,
         "senderName": "John Tenant",
         "senderAvatar": "https://...",
+        "senderRole": "TENANT",
         "content": "Hi, I'm interested in the property. Does it include parking?",
         "isOwn": true,
         "isRead": true,
@@ -408,8 +558,8 @@ Content-Type: application/json
    - If exists AND deleted by tenant: restore and add message
 3. Look up property to get landlord_id
 4. Create conversation record
-5. Create first message record
-6. Optionally: Create notification for landlord (see Notifications spec)
+5. Create first message with sender_role = 'TENANT'
+6. Notify landlord AND all property managers assigned to property
 
 ---
 
@@ -430,9 +580,10 @@ Content-Type: application/json
 {
     "id": 2,
     "conversationId": 1,
-    "senderId": 3,
-    "senderName": "Jane Landlord",
+    "senderId": 7,
+    "senderName": "Mike Manager",
     "senderAvatar": "https://...",
+    "senderRole": "PROPERTY_MANAGER",
     "content": "Yes, there's one assigned parking spot included with the unit.",
     "isOwn": true,
     "isRead": true,
@@ -443,15 +594,17 @@ Content-Type: application/json
 
 **Errors:**
 - `400 Bad Request`: Message empty or exceeds 5000 characters
-- `403 Forbidden`: User is not a participant
+- `403 Forbidden`: User is not authorized
 - `404 Not Found`: Conversation doesn't exist
 
 **Business Logic:**
-1. Validate user is participant (tenant_id OR landlord_id)
+1. Validate user authorization (see Authorization Logic section)
 2. Validate content (not empty, max 5000 chars)
-3. Create message record
-4. Update conversation's `last_message_at` and `updated_at`
-5. Create notification for recipient
+3. Create message with sender's actual role
+4. Update conversation's `last_message_at`
+5. Notify appropriate recipients:
+   - If sender is TENANT: notify landlord + property managers
+   - If sender is LANDLORD/PM: notify tenant
 
 ---
 
@@ -483,9 +636,7 @@ WHERE conversation_id = :conversationId
 
 ---
 
-### 6. Check Existing Conversation for Property
-
-Used by frontend to check if tenant already has a conversation about a property.
+### 6. Check Existing Conversation for Property (Tenant Only)
 
 ```http
 GET /api/conversations/property/{propertyId}
@@ -527,27 +678,44 @@ Authorization: Bearer {{token}}
 }
 ```
 
-**SQL:**
+**SQL by Role:**
+
 ```sql
-SELECT 
-    COUNT(DISTINCT m.id) as unread_count,
-    COUNT(DISTINCT c.id) as unread_conversations
+-- TENANT
+SELECT COUNT(DISTINCT m.id), COUNT(DISTINCT c.id)
 FROM conversations c
 JOIN messages m ON m.conversation_id = c.id
-WHERE (c.tenant_id = :userId OR c.landlord_id = :userId)
+WHERE c.tenant_id = :userId
   AND m.sender_id != :userId
   AND m.read_at IS NULL
-  AND (
-    (c.tenant_id = :userId AND c.tenant_deleted_at IS NULL) OR
-    (c.landlord_id = :userId AND c.landlord_deleted_at IS NULL)
-  );
+  AND c.tenant_deleted_at IS NULL;
+
+-- LANDLORD
+SELECT COUNT(DISTINCT m.id), COUNT(DISTINCT c.id)
+FROM conversations c
+JOIN properties p ON c.property_id = p.id
+JOIN messages m ON m.conversation_id = c.id
+WHERE p.landlord_id = :userId
+  AND m.sender_id != :userId
+  AND m.read_at IS NULL
+  AND c.landlord_deleted_at IS NULL;
+
+-- PROPERTY_MANAGER
+SELECT COUNT(DISTINCT m.id), COUNT(DISTINCT c.id)
+FROM conversations c
+JOIN property_managers pm ON c.property_id = pm.property_id
+JOIN messages m ON m.conversation_id = c.id
+WHERE pm.user_id = :userId
+  AND m.sender_id != :userId
+  AND m.read_at IS NULL
+  AND c.landlord_deleted_at IS NULL;
 ```
 
 ---
 
 ### 8. Delete/Archive Conversation
 
-Soft delete for the current user only. The other participant still sees it.
+Soft delete for the current user only.
 
 ```http
 DELETE /api/conversations/{conversationId}
@@ -557,15 +725,16 @@ Authorization: Bearer {{token}}
 **Response:** `204 No Content`
 
 **Business Logic:**
-- If current user is tenant: set `tenant_deleted_at = NOW()`
-- If current user is landlord: set `landlord_deleted_at = NOW()`
-- If BOTH have deleted: actually delete from database (cleanup job)
+- TENANT: set `tenant_deleted_at = NOW()`
+- LANDLORD: set `landlord_deleted_at = NOW()`
+- PROPERTY_MANAGER: Not allowed (403)
+- If BOTH tenant and landlord have deleted: schedule for hard delete
 
 ---
 
 ## Complete Flow Examples
 
-### Flow 1: Tenant Contacts Landlord
+### Flow 1: Tenant Contacts Landlord (PM Responds)
 
 ```
 1. Tenant views property listing
@@ -578,36 +747,48 @@ Authorization: Bearer {{token}}
 3. Tenant sends message:
    POST /api/conversations
    { propertyId: 5, message: "Is this still available?" }
-   → Conversation created, landlord notified
+   → Conversation created
+   → Notifications sent to: landlord + all property managers
 
-4. Landlord sees notification, opens messages:
+4. Property Manager sees notification, opens messages:
    GET /api/conversations
    → Shows new conversation with unreadCount: 1
 
-5. Landlord opens conversation:
+5. Property Manager opens conversation:
    GET /api/conversations/1
-   → Returns messages, auto-marks as read
+   → Returns full conversation detail
+   → Shows tenant info + landlord info + PM list
+   → currentUserRole: "PROPERTY_MANAGER"
 
-6. Landlord replies:
+6. Property Manager marks as read:
+   PATCH /api/conversations/1/read
+
+7. Property Manager replies:
    POST /api/conversations/1/messages
    { content: "Yes, would you like to schedule a viewing?" }
+   → Message saved with senderRole: "PROPERTY_MANAGER"
    → Tenant notified
+
+8. Tenant sees response:
+   → Message shows "Mike Manager (Property Manager)"
+   → Tenant knows they're talking to PM, not landlord
 ```
 
-### Flow 2: Continuing Existing Conversation
+### Flow 2: Multiple Responders
 
 ```
-1. Tenant clicks "Contact Landlord" on same property:
-   GET /api/conversations/property/5
-   → { exists: true, conversationId: 1 }
+1. Tenant asks question about property
+   → Landlord and PM both see unread count
 
-2. Frontend navigates to existing conversation:
-   GET /api/conversations/1
-   → Shows message history
+2. PM responds first:
+   → Message shows: "Mike Manager (Property Manager)"
+   → Tenant unread cleared
 
-3. Tenant sends follow-up:
+3. Landlord also wants to add info:
    POST /api/conversations/1/messages
-   { content: "Yes, I'm free Saturday afternoon" }
+   → Message shows: "Jane Landlord (Owner)"
+
+4. Tenant sees both messages with clear role labels
 ```
 
 ---
@@ -624,55 +805,98 @@ Authorization: Bearer {{token}}
 
 ## Notifications Integration
 
-When a message is sent, create a notification for the recipient:
+When a message is sent, notify appropriate users:
 
 ```java
 // In MessageService.sendMessage()
-Notification notification = new Notification();
-notification.setUserId(recipientId);
-notification.setType(NotificationType.MESSAGE);
-notification.setTitle("New Message");
-notification.setDescription("Message from " + senderName + " about " + propertyTitle);
-notification.setLink("/dashboard/messages?conversation=" + conversationId);
-notificationService.create(notification);
+public void notifyRecipients(Conversation conv, Message msg, Long senderId) {
+    Set<Long> recipients = new HashSet<>();
+    
+    if (msg.getSenderRole() == SenderRole.TENANT) {
+        // Tenant sent: notify landlord + all property managers
+        recipients.add(conv.getLandlordId());
+        recipients.addAll(propertyManagerRepository
+            .findUserIdsByPropertyId(conv.getPropertyId()));
+    } else {
+        // Landlord or PM sent: notify tenant only
+        recipients.add(conv.getTenantId());
+    }
+    
+    // Don't notify sender
+    recipients.remove(senderId);
+    
+    for (Long userId : recipients) {
+        notificationService.create(
+            userId,
+            NotificationType.MESSAGE,
+            "New Message",
+            "Message from " + msg.getSenderName() + " about " + propertyTitle,
+            "/dashboard/messages?conversation=" + conv.getId()
+        );
+    }
+}
 ```
 
 ---
 
 ## Real-time Considerations (Future)
 
-For real-time messaging, consider:
+For real-time messaging:
 
-1. **WebSocket Integration**
-   - Subscribe to conversation updates
+1. **WebSocket Subscriptions**
+   - Subscribe to `/topic/conversations/{conversationId}`
    - Push new messages instantly
-   - Update unread counts in real-time
+   - Update typing indicators
 
-2. **Polling Alternative**
-   - Frontend polls `/api/conversations/unread-count` every 30s
-   - Poll active conversation every 5s for new messages
+2. **Unread Count Updates**
+   - Subscribe to `/user/queue/unread-count`
+   - Real-time badge updates
+
+3. **Polling Alternative**
+   - Poll `/api/conversations/unread-count` every 30s
+   - Poll active conversation every 5s
 
 ---
 
 ## TypeScript Interfaces (Frontend)
 
 ```typescript
-// Types
+// Enums
+type UserRole = 'TENANT' | 'LANDLORD' | 'PROPERTY_MANAGER';
+type ConversationStatus = 'ACTIVE' | 'ARCHIVED';
+
+// Participant types
+interface ParticipantSummary {
+    id: number;
+    fullName: string;
+    avatar: string | null;
+    role: UserRole;
+}
+
+interface Participant {
+    id: number;
+    fullName: string;
+    avatar: string | null;
+    email: string;
+    phone: string | null;
+    role: UserRole;
+}
+
+// Conversation types
 interface Conversation {
     id: number;
     propertyId: number;
     propertyTitle: string;
     propertyImage: string | null;
-    participantId: number;
-    participantName: string;
-    participantAvatar: string | null;
-    participantRole: 'TENANT' | 'LANDLORD';
+    participants: ParticipantSummary[];
+    primaryParticipant: ParticipantSummary;
     subject: string | null;
     lastMessage: string;
     lastMessageAt: string;
     lastMessageSenderId: number;
+    lastMessageSenderRole: UserRole;
     unreadCount: number;
-    status: 'ACTIVE' | 'ARCHIVED';
+    status: ConversationStatus;
     createdAt: string;
 }
 
@@ -684,29 +908,24 @@ interface ConversationDetail {
     propertyImage: string | null;
     tenant: Participant;
     landlord: Participant;
-    currentUserRole: 'TENANT' | 'LANDLORD';
+    propertyManagers: Participant[];
+    currentUserRole: UserRole;
     subject: string | null;
-    status: 'ACTIVE' | 'ARCHIVED';
+    status: ConversationStatus;
     messages: Message[];
     hasMoreMessages: boolean;
     createdAt: string;
     updatedAt: string;
 }
 
-interface Participant {
-    id: number;
-    fullName: string;
-    avatar: string | null;
-    email: string;
-    phone: string | null;
-}
-
+// Message types
 interface Message {
     id: number;
     conversationId: number;
     senderId: number;
     senderName: string;
     senderAvatar: string | null;
+    senderRole: UserRole;
     content: string;
     isOwn: boolean;
     isRead: boolean;
@@ -740,6 +959,11 @@ interface PropertyConversationCheckResponse {
     exists: boolean;
     conversationId: number | null;
 }
+
+interface MarkAsReadResponse {
+    markedAsRead: number;
+    conversationId: number;
+}
 ```
 
 ---
@@ -761,7 +985,7 @@ All errors follow this format:
 | Status | When |
 |--------|------|
 | 400 | Validation failed (empty message, too long, etc.) |
-| 403 | User not participant / wrong role |
+| 403 | User not authorized (wrong role, not assigned to property) |
 | 404 | Conversation or property not found |
 | 409 | Conversation already exists for tenant + property |
 
@@ -769,26 +993,58 @@ All errors follow this format:
 
 ## Security Considerations
 
-1. **Authorization**: Users can only access conversations they're part of
-2. **Rate Limiting**: Limit message sending (e.g., 10 messages/minute)
-3. **Content Validation**: Sanitize message content, prevent XSS
-4. **Spam Prevention**: Consider cooldown before starting new conversations
+1. **Authorization**:
+   - Tenants: only their own conversations
+   - Landlords: only properties they own
+   - Property Managers: only assigned properties
+
+2. **Role Verification**:
+   ```java
+   // On every request, verify:
+   // 1. User is authenticated
+   // 2. User role matches allowed roles for endpoint
+   // 3. User has access to specific conversation
+   ```
+
+3. **Rate Limiting**: 
+   - 10 messages/minute per user
+   - 5 new conversations/hour per tenant
+
+4. **Content Validation**: 
+   - Sanitize message content
+   - Prevent XSS attacks
+
+5. **Spam Prevention**: 
+   - Cooldown before starting new conversations
+   - Report/block functionality (future)
 
 ---
 
-## Property Manager Support (Optional Extension)
+## UI Display Guidelines
 
-If property managers can respond on behalf of landlords:
+### Sender Role Labels
 
-```sql
--- Add to conversations table
-manager_id BIGINT REFERENCES users(id),
+Show clear role indicators in message UI:
 
--- Modify authorization check
-WHERE (
-    c.tenant_id = :userId OR 
-    c.landlord_id = :userId OR
-    c.manager_id = :userId OR
-    :userId IN (SELECT manager_id FROM property_managers WHERE property_id = c.property_id)
-)
 ```
+Tenant view:
+  "Jane Landlord" (Owner)
+  "Mike Manager" (Property Manager)
+
+Landlord/PM view:
+  "John Tenant" (Tenant)
+```
+
+### Conversation List - Primary Contact
+
+| Viewer Role | Shows as Primary Contact |
+|-------------|--------------------------|
+| TENANT | Landlord name |
+| LANDLORD | Tenant name |
+| PROPERTY_MANAGER | Tenant name |
+
+### Message Alignment
+
+- Own messages: Right side, primary color
+- Other messages: Left side, secondary/muted color
+- Show sender name + role label above each message
