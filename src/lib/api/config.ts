@@ -42,6 +42,16 @@ export const API_ENDPOINTS = {
   LEASE_APPLICATION_APPROVE: (applicationId: number) => `/api/lease-applications/${applicationId}/approve`,
   LEASE_APPLICATION_REJECT: (applicationId: number) => `/api/lease-applications/${applicationId}/reject`,
   LEASE_APPLICATION_CANCEL: (applicationId: number) => `/api/lease-applications/${applicationId}/cancel`,
+
+  // Lease Agreements
+  LEASE_AGREEMENTS: "/api/lease-agreements",
+  LEASE_AGREEMENT_DETAIL: (leaseId: number) => `/api/lease-agreements/${leaseId}`,
+  LEASE_AGREEMENTS_MY: "/api/lease-agreements/my",
+  LEASE_AGREEMENTS_FOR_LANDLORD: "/api/lease-agreements/for-landlord",
+  LEASE_AGREEMENTS_FOR_PROPERTY: (propertyId: number) => `/api/lease-agreements/for-property/${propertyId}`,
+  LEASE_AGREEMENT_CONTRACT: (leaseId: number) => `/api/lease-agreements/${leaseId}/contract`,
+  LEASE_AGREEMENT_ACTIVATE: (leaseId: number) => `/api/lease-agreements/${leaseId}/activate`,
+  LEASE_AGREEMENT_TERMINATE: (leaseId: number) => `/api/lease-agreements/${leaseId}/terminate`,
 } as const;
 
 // Token storage keys
