@@ -1,23 +1,22 @@
 import { useState, useEffect } from 'react';
-import { ScrollText, Calendar, DollarSign, Clock, CheckCircle2, XCircle, Eye } from 'lucide-react';
+import { ScrollText, Calendar, DollarSign, Clock, CheckCircle2, XCircle, FileText, ExternalLink } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
-import { getTenantLeases, acceptLease, rejectLease, processLeasePayment } from '@/lib/mockDatabase';
-import { LeaseAgreement } from '@/types/landlord';
-import { LeaseReviewModal } from '@/components/tenant/LeaseReviewModal';
-import { LeasePaymentModal } from '@/components/tenant/LeasePaymentModal';
+import { leaseApi, LeaseResponseDTO, LeaseStatus } from '@/lib/api/leaseApi';
 import { toast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
+import { useNavigate } from 'react-router-dom';
+import { API_BASE_URL } from '@/lib/api/config';
 
 export default function TenantLeases() {
   const { user } = useAuth();
-  const [leases, setLeases] = useState<LeaseAgreement[]>([]);
+  const navigate = useNavigate();
+  const [leases, setLeases] = useState<LeaseResponseDTO[]>([]);
   const [selectedTab, setSelectedTab] = useState('pending');
-  const [reviewingLease, setReviewingLease] = useState<LeaseAgreement | null>(null);
-  const [payingLease, setPayingLease] = useState<LeaseAgreement | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     if (user) {
@@ -25,93 +24,88 @@ export default function TenantLeases() {
     }
   }, [user]);
 
-  const refreshLeases = () => {
-    if (user) {
-      setLeases(getTenantLeases(user.id));
+  const refreshLeases = async () => {
+    try {
+      setIsLoading(true);
+      const data = await leaseApi.getMyLeases();
+      setLeases(data);
+    } catch (error: any) {
+      toast({
+        title: 'Error loading leases',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: LeaseStatus) => {
     switch (status) {
-      case 'pending_tenant':
-        return <Badge variant="secondary"><Clock className="h-3 w-3 mr-1" />Pending Review</Badge>;
-      case 'tenant_accepted':
-      case 'payment_pending':
-        return <Badge variant="outline"><DollarSign className="h-3 w-3 mr-1" />Payment Pending</Badge>;
-      case 'active':
+      case 'PENDING':
+        return <Badge variant="secondary"><Clock className="h-3 w-3 mr-1" />Pending</Badge>;
+      case 'ACTIVE':
         return <Badge className="bg-green-500"><CheckCircle2 className="h-3 w-3 mr-1" />Active</Badge>;
-      case 'rejected':
-        return <Badge variant="destructive"><XCircle className="h-3 w-3 mr-1" />Rejected</Badge>;
-      case 'expired':
+      case 'TERMINATED':
+        return <Badge variant="destructive"><XCircle className="h-3 w-3 mr-1" />Terminated</Badge>;
+      case 'EXPIRED':
         return <Badge variant="secondary">Expired</Badge>;
       default:
         return <Badge variant="secondary">{status}</Badge>;
     }
   };
 
-  const handleAcceptLease = () => {
-    if (!reviewingLease || !user) return;
-    
-    acceptLease(reviewingLease.id);
-    setReviewingLease(null);
-    setPayingLease(reviewingLease);
-    refreshLeases();
-  };
-
-  const handleRejectLease = (reason: string) => {
-    if (!reviewingLease || !user) return;
-    
-    rejectLease(reviewingLease.id, reason);
-    toast({
-      title: 'Lease Rejected',
-      description: 'The landlord has been notified of your decision.',
-    });
-    setReviewingLease(null);
-    refreshLeases();
-  };
-
-  const handlePaymentComplete = () => {
-    if (!payingLease || !user) return;
-    
-    processLeasePayment(payingLease.id);
-    toast({
-      title: 'Payment Successful!',
-      description: 'Your lease is now active. Welcome to your new home!',
-    });
-    setPayingLease(null);
-    refreshLeases();
-  };
-
   const filteredLeases = leases.filter((lease) => {
     if (selectedTab === 'all') return true;
-    if (selectedTab === 'pending') return lease.status === 'pending_tenant' || lease.status === 'payment_pending';
-    if (selectedTab === 'active') return lease.status === 'active';
-    if (selectedTab === 'past') return lease.status === 'expired' || lease.status === 'rejected' || lease.status === 'terminated';
+    if (selectedTab === 'pending') return lease.status === 'PENDING';
+    if (selectedTab === 'active') return lease.status === 'ACTIVE';
+    if (selectedTab === 'past') return lease.status === 'EXPIRED' || lease.status === 'TERMINATED';
     return true;
   });
 
-  const pendingCount = leases.filter(l => l.status === 'pending_tenant' || l.status === 'payment_pending').length;
-  const activeCount = leases.filter(l => l.status === 'active').length;
+  const pendingCount = leases.filter(l => l.status === 'PENDING').length;
+  const activeCount = leases.filter(l => l.status === 'ACTIVE').length;
+  const pastCount = leases.filter(l => l.status === 'EXPIRED' || l.status === 'TERMINATED').length;
+
+  const getContractUrl = (lease: LeaseResponseDTO) => {
+    if (!lease.contractFileUrl) return null;
+    // If it's already a full URL, return it; otherwise prepend base URL
+    if (lease.contractFileUrl.startsWith('http')) {
+      return lease.contractFileUrl;
+    }
+    return `${API_BASE_URL}/${lease.contractFileUrl}`;
+  };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Lease Agreements</h1>
+          <p className="text-muted-foreground">Loading your lease agreements...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Lease Agreements</h1>
         <p className="text-muted-foreground">
-          Review and manage your lease agreements
+          View your lease agreements
         </p>
       </div>
 
       <Tabs value={selectedTab} onValueChange={setSelectedTab}>
         <TabsList>
           <TabsTrigger value="pending">
-            Pending Review ({pendingCount})
+            Pending ({pendingCount})
           </TabsTrigger>
           <TabsTrigger value="active">
             Active ({activeCount})
           </TabsTrigger>
           <TabsTrigger value="past">
-            Past
+            Past ({pastCount})
           </TabsTrigger>
           <TabsTrigger value="all">
             All ({leases.length})
@@ -128,7 +122,7 @@ export default function TenantLeases() {
                 <h3 className="text-lg font-semibold mb-2">No lease agreements</h3>
                 <p className="text-muted-foreground text-center">
                   {selectedTab === 'pending'
-                    ? 'No pending lease agreements to review'
+                    ? 'No pending lease agreements'
                     : selectedTab === 'active'
                     ? 'You have no active leases'
                     : 'No lease agreements found'}
@@ -142,18 +136,24 @@ export default function TenantLeases() {
                   <CardHeader>
                     <div className="flex items-start justify-between">
                       <div className="flex items-start gap-4">
-                        <img
-                          src={lease.property.thumbnail}
-                          alt={lease.property.title}
-                          className="h-20 w-20 rounded-lg object-cover"
-                        />
+                        {lease.propertyCoverImageUrl ? (
+                          <img
+                            src={lease.propertyCoverImageUrl}
+                            alt={lease.propertyTitle}
+                            className="h-20 w-20 rounded-lg object-cover"
+                          />
+                        ) : (
+                          <div className="h-20 w-20 rounded-lg bg-muted flex items-center justify-center">
+                            <ScrollText className="h-8 w-8 text-muted-foreground" />
+                          </div>
+                        )}
                         <div>
                           <div className="flex items-center gap-2">
-                            <CardTitle className="text-lg">{lease.property.title}</CardTitle>
+                            <CardTitle className="text-lg">{lease.propertyTitle}</CardTitle>
                             {getStatusBadge(lease.status)}
                           </div>
                           <CardDescription>
-                            {lease.property.address.street}, {lease.property.address.city}, {lease.property.address.state}
+                            {lease.propertyAddress}
                           </CardDescription>
                           <div className="flex items-center gap-4 mt-2 text-sm">
                             <div className="flex items-center gap-1.5">
@@ -171,57 +171,52 @@ export default function TenantLeases() {
                     <div className="grid gap-4 md:grid-cols-2">
                       {/* Financial Summary */}
                       <div className="p-4 bg-muted/50 rounded-lg">
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <p className="text-sm text-muted-foreground">Monthly Rent</p>
-                            <p className="text-xl font-bold">${lease.monthlyRent.toLocaleString()}</p>
-                          </div>
-                          <div>
-                            <p className="text-sm text-muted-foreground">Security Deposit</p>
-                            <p className="text-xl font-bold">${lease.securityDeposit.toLocaleString()}</p>
-                          </div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <DollarSign className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm text-muted-foreground">Monthly Rent</span>
                         </div>
+                        <p className="text-xl font-bold">${lease.rentAmount.toLocaleString()}</p>
                       </div>
 
-                      {/* Documents Count */}
+                      {/* Contract Document */}
                       <div className="p-4 bg-muted/50 rounded-lg flex items-center justify-between">
                         <div>
-                          <p className="text-sm text-muted-foreground">Attached Documents</p>
-                          <p className="text-xl font-bold">{lease.documents?.length || 0} files</p>
+                          <p className="text-sm text-muted-foreground">Lease Contract</p>
+                          <p className="font-medium">
+                            {lease.contractFileUrl ? 'Document attached' : 'No document'}
+                          </p>
                         </div>
-                        {lease.documents && lease.documents.length > 0 && (
-                          <ScrollText className="h-8 w-8 text-muted-foreground" />
+                        {lease.contractFileUrl && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const url = getContractUrl(lease);
+                              if (url) window.open(url, '_blank');
+                            }}
+                          >
+                            <ExternalLink className="h-4 w-4 mr-1" />
+                            View
+                          </Button>
                         )}
                       </div>
                     </div>
 
-                    {/* Actions based on status */}
-                    {lease.status === 'pending_tenant' && (
-                      <Button
-                        className="w-full mt-4"
-                        onClick={() => setReviewingLease(lease)}
-                      >
-                        <Eye className="h-4 w-4 mr-2" />
-                        Review & Accept/Reject
-                      </Button>
-                    )}
-
-                    {(lease.status === 'tenant_accepted' || lease.status === 'payment_pending') && (
-                      <Button
-                        className="w-full mt-4"
-                        onClick={() => setPayingLease(lease)}
-                      >
-                        <DollarSign className="h-4 w-4 mr-2" />
-                        Complete Payment (${(lease.securityDeposit + lease.monthlyRent).toLocaleString()})
-                      </Button>
-                    )}
-
-                    {lease.status === 'rejected' && lease.rejectionReason && (
-                      <div className="mt-4 p-3 bg-destructive/10 rounded-lg">
-                        <p className="text-sm font-medium text-destructive">Rejection Reason:</p>
-                        <p className="text-sm text-muted-foreground">{lease.rejectionReason}</p>
+                    {/* Landlord Info */}
+                    <div className="mt-4 p-3 bg-muted/30 rounded-lg flex items-center justify-between">
+                      <div className="text-sm">
+                        <span className="text-muted-foreground">Landlord: </span>
+                        <span className="font-medium">{lease.landlordName}</span>
                       </div>
-                    )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => navigate(`/properties/${lease.propertyId}`)}
+                      >
+                        <FileText className="h-4 w-4 mr-1" />
+                        View Property
+                      </Button>
+                    </div>
                   </CardContent>
                 </Card>
               ))}
@@ -229,27 +224,6 @@ export default function TenantLeases() {
           )}
         </TabsContent>
       </Tabs>
-
-      {/* Review Modal */}
-      {reviewingLease && (
-        <LeaseReviewModal
-          open={!!reviewingLease}
-          onOpenChange={(open) => !open && setReviewingLease(null)}
-          lease={reviewingLease}
-          onAccept={handleAcceptLease}
-          onReject={handleRejectLease}
-        />
-      )}
-
-      {/* Payment Modal */}
-      {payingLease && (
-        <LeasePaymentModal
-          open={!!payingLease}
-          onOpenChange={(open) => !open && setPayingLease(null)}
-          lease={payingLease}
-          onPaymentComplete={handlePaymentComplete}
-        />
-      )}
     </div>
   );
 }
