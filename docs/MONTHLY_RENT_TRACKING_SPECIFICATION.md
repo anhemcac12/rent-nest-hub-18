@@ -1,114 +1,44 @@
 # Monthly Rent Tracking - Backend Specification
 
-## Current Gap Analysis
+## Overview
 
-The current API does **NOT** include automatic monthly rent tracking. Currently:
-- Payments are logged manually (by landlord) or initiated by tenant
-- No automatic generation of monthly rent dues
-- No tracking of which months are paid vs unpaid
+This document specifies the monthly rent schedule tracking system that automatically generates and tracks rent payments for active leases.
 
 ---
 
-## Required Backend Features
+## Quick Reference
 
-### 1. Rent Schedule Generation
-
-When a lease becomes `ACTIVE`, the backend should auto-generate rent schedule entries.
-
-#### New Entity: `RentSchedule`
-
-```java
-@Entity
-@Table(name = "rent_schedules")
-public class RentSchedule {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-    
-    @ManyToOne
-    @JoinColumn(name = "lease_id", nullable = false)
-    private LeaseAgreement lease;
-    
-    @Column(nullable = false)
-    private LocalDate dueDate;           // e.g., 2025-02-01
-    
-    @Column(nullable = false)
-    private LocalDate periodStart;       // e.g., 2025-02-01
-    
-    @Column(nullable = false)
-    private LocalDate periodEnd;         // e.g., 2025-02-28
-    
-    @Column(nullable = false)
-    private BigDecimal amountDue;        // Rent amount
-    
-    @Column(nullable = false)
-    private BigDecimal amountPaid = BigDecimal.ZERO;
-    
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private RentStatus status = RentStatus.UPCOMING;
-    
-    private LocalDateTime paidAt;
-    
-    @ManyToOne
-    @JoinColumn(name = "payment_id")
-    private Payment payment;             // Link to payment when paid
-    
-    private Integer gracePeriodDays = 5; // Days after due before late fee
-    
-    private BigDecimal lateFeeAmount;
-    private boolean lateFeeApplied = false;
-}
-
-public enum RentStatus {
-    UPCOMING,    // Future rent, not yet due
-    DUE,         // Currently due (within grace period)
-    PAID,        // Fully paid
-    PARTIAL,     // Partially paid
-    OVERDUE,     // Past grace period, unpaid
-    WAIVED       // Landlord waived this payment
-}
-```
+| Method | Endpoint | Actor | Description |
+|--------|----------|-------|-------------|
+| GET | `/api/leases/{id}/rent-schedule` | All | Get full rent schedule |
+| GET | `/api/leases/{id}/rent-schedule/current` | All | Get current month due |
+| POST | `/api/leases/{id}/rent-schedule/{scheduleId}/pay` | Tenant | Pay specific month |
+| PATCH | `/api/leases/{id}/rent-schedule/{scheduleId}/waive` | Landlord | Waive rent |
+| GET | `/api/leases/rent-schedule/upcoming` | Tenant | Get all upcoming dues |
 
 ---
 
-### 2. Auto-Generation Logic
+## How It Works
 
-#### On Lease Activation:
-```java
-public void generateRentSchedule(LeaseAgreement lease) {
-    LocalDate current = lease.getStartDate();
-    LocalDate end = lease.getEndDate();
-    
-    while (current.isBefore(end) || current.isEqual(end)) {
-        RentSchedule schedule = new RentSchedule();
-        schedule.setLease(lease);
-        schedule.setDueDate(current);
-        schedule.setPeriodStart(current);
-        schedule.setPeriodEnd(current.plusMonths(1).minusDays(1));
-        schedule.setAmountDue(lease.getRentAmount());
-        schedule.setStatus(
-            current.isAfter(LocalDate.now()) ? RentStatus.UPCOMING : RentStatus.DUE
-        );
-        rentScheduleRepository.save(schedule);
-        
-        current = current.plusMonths(1);
-    }
-}
-```
+1. **Auto-generation**: When a lease becomes `ACTIVE` (after tenant pays deposit + first rent), the system automatically generates rent entries for all months.
+
+2. **Status Flow**:
+   ```
+   UPCOMING → DUE → PAID
+              ↓
+           OVERDUE → PAID
+              ↓
+           WAIVED (by landlord)
+   ```
+
+3. **First month handling**: The first month's rent is paid via the acceptance payment flow, so it starts as `PAID`.
 
 ---
 
-### 3. New API Endpoints
+## Data Structures
 
-#### 3.1 Get Rent Schedule for Lease
+### RentScheduleDTO (Full Schedule)
 
-```http
-GET /api/leases/{leaseId}/rent-schedule
-Authorization: Bearer {{token}}
-```
-
-**Response:**
 ```json
 {
   "leaseId": 5,
@@ -127,33 +57,98 @@ Authorization: Bearer {{token}}
       "amountPaid": 2500.00,
       "status": "PAID",
       "paidAt": "2025-01-02T10:30:00",
-      "paymentId": 15
-    },
-    {
-      "id": 2,
-      "dueDate": "2025-02-01",
-      "periodStart": "2025-02-01",
-      "periodEnd": "2025-02-28",
-      "amountDue": 2500.00,
-      "amountPaid": 0,
-      "status": "DUE",
-      "daysUntilDue": 5,
-      "gracePeriodEnds": "2025-02-06"
-    },
-    {
-      "id": 3,
-      "dueDate": "2025-03-01",
-      "periodStart": "2025-03-01",
-      "periodEnd": "2025-03-31",
-      "amountDue": 2500.00,
-      "amountPaid": 0,
-      "status": "UPCOMING"
+      "paymentId": 15,
+      "daysUntilDue": null,
+      "daysOverdue": null,
+      "gracePeriodEnds": null,
+      "lateFeeAmount": null,
+      "lateFeeApplied": false
     }
   ]
 }
 ```
 
-#### 3.2 Pay Specific Month's Rent
+### RentScheduleItemDTO
+
+```json
+{
+  "id": 2,
+  "dueDate": "2025-02-01",
+  "periodStart": "2025-02-01",
+  "periodEnd": "2025-02-28",
+  "amountDue": 2500.00,
+  "amountPaid": 0,
+  "status": "DUE",
+  "paidAt": null,
+  "paymentId": null,
+  "daysUntilDue": 5,
+  "daysOverdue": null,
+  "gracePeriodEnds": "2025-02-06",
+  "lateFeeAmount": null,
+  "lateFeeApplied": false
+}
+```
+
+### RentStatus Enum
+
+```
+UPCOMING → Future rent, not yet due
+DUE      → Currently due (within grace period)
+PAID     → Fully paid
+PARTIAL  → Partially paid
+OVERDUE  → Past grace period, unpaid
+WAIVED   → Landlord waived this payment
+```
+
+---
+
+## API Endpoints
+
+### 1. Get Full Rent Schedule
+
+```http
+GET /api/leases/{leaseId}/rent-schedule
+Authorization: Bearer {{token}}
+```
+
+**Response:** `200 OK`
+```json
+{
+  "leaseId": 5,
+  "rentAmount": 2500.00,
+  "totalMonths": 12,
+  "paidMonths": 1,
+  "upcomingMonths": 10,
+  "overdueMonths": 1,
+  "schedule": [...]
+}
+```
+
+---
+
+### 2. Get Current Month Due
+
+```http
+GET /api/leases/{leaseId}/rent-schedule/current
+Authorization: Bearer {{token}}
+```
+
+**Response:** `200 OK`
+```json
+{
+  "id": 2,
+  "dueDate": "2025-02-01",
+  "amountDue": 2500.00,
+  "amountPaid": 0,
+  "status": "DUE",
+  "daysUntilDue": 5,
+  "gracePeriodEnds": "2025-02-06"
+}
+```
+
+---
+
+### 3. Tenant Pays Rent
 
 ```http
 POST /api/leases/{leaseId}/rent-schedule/{scheduleId}/pay
@@ -172,8 +167,10 @@ Content-Type: application/json
   "rentSchedule": {
     "id": 2,
     "status": "PAID",
+    "amountDue": 2500.00,
     "amountPaid": 2500.00,
-    "paidAt": "2025-02-01T14:00:00"
+    "paidAt": "2025-02-01T14:00:00",
+    "paymentId": 20
   },
   "payment": {
     "id": 20,
@@ -184,28 +181,14 @@ Content-Type: application/json
 }
 ```
 
-#### 3.3 Get Current Month Due (Convenience)
+**Errors:**
+- 400: "This rent period is already paid."
+- 400: "Payment amount exceeds remaining due."
+- 403: "You are not the tenant on this lease."
 
-```http
-GET /api/leases/{leaseId}/rent-schedule/current
-Authorization: Bearer {{token}}
-```
+---
 
-**Response:**
-```json
-{
-  "id": 2,
-  "dueDate": "2025-02-01",
-  "amountDue": 2500.00,
-  "amountPaid": 0,
-  "status": "DUE",
-  "daysRemaining": 5,
-  "isOverdue": false,
-  "lateFeeAmount": null
-}
-```
-
-#### 3.4 Landlord Waive Rent
+### 4. Landlord Waives Rent
 
 ```http
 PATCH /api/leases/{leaseId}/rent-schedule/{scheduleId}/waive
@@ -217,11 +200,138 @@ Content-Type: application/json
 }
 ```
 
+**Response:** `200 OK`
+```json
+{
+  "id": 3,
+  "status": "WAIVED",
+  "amountDue": 2500.00,
+  "amountPaid": 2500.00
+}
+```
+
 ---
 
-### 4. Background Jobs
+### 5. Get All Upcoming Dues (Tenant)
 
-#### 4.1 Daily Status Update Job
+```http
+GET /api/leases/rent-schedule/upcoming
+Authorization: Bearer {{tenant_jwt}}
+```
+
+**Response:** `200 OK`
+```json
+[
+  {
+    "id": 2,
+    "dueDate": "2025-02-01",
+    "amountDue": 2500.00,
+    "status": "DUE"
+  }
+]
+```
+
+---
+
+## Required Backend Implementation
+
+### 1. New Entity: `RentSchedule`
+
+```java
+@Entity
+@Table(name = "rent_schedules")
+public class RentSchedule {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    
+    @ManyToOne
+    @JoinColumn(name = "lease_id", nullable = false)
+    private LeaseAgreement lease;
+    
+    @Column(nullable = false)
+    private LocalDate dueDate;
+    
+    @Column(nullable = false)
+    private LocalDate periodStart;
+    
+    @Column(nullable = false)
+    private LocalDate periodEnd;
+    
+    @Column(nullable = false)
+    private BigDecimal amountDue;
+    
+    @Column(nullable = false)
+    private BigDecimal amountPaid = BigDecimal.ZERO;
+    
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private RentStatus status = RentStatus.UPCOMING;
+    
+    private LocalDateTime paidAt;
+    
+    @ManyToOne
+    @JoinColumn(name = "payment_id")
+    private Payment payment;
+    
+    private Integer gracePeriodDays = 5;
+    private BigDecimal lateFeeAmount;
+    private boolean lateFeeApplied = false;
+}
+
+public enum RentStatus {
+    UPCOMING,
+    DUE,
+    PAID,
+    PARTIAL,
+    OVERDUE,
+    WAIVED
+}
+```
+
+---
+
+### 2. Auto-Generation Logic
+
+When a lease becomes `ACTIVE`:
+
+```java
+public void generateRentSchedule(LeaseAgreement lease) {
+    LocalDate current = lease.getStartDate();
+    LocalDate end = lease.getEndDate();
+    boolean isFirstMonth = true;
+    
+    while (current.isBefore(end) || current.isEqual(end)) {
+        RentSchedule schedule = new RentSchedule();
+        schedule.setLease(lease);
+        schedule.setDueDate(current);
+        schedule.setPeriodStart(current);
+        schedule.setPeriodEnd(current.plusMonths(1).minusDays(1));
+        schedule.setAmountDue(lease.getRentAmount());
+        
+        if (isFirstMonth) {
+            // First month is already paid via acceptance payment
+            schedule.setStatus(RentStatus.PAID);
+            schedule.setAmountPaid(lease.getRentAmount());
+            schedule.setPaidAt(LocalDateTime.now());
+            isFirstMonth = false;
+        } else {
+            schedule.setStatus(
+                current.isAfter(LocalDate.now()) ? RentStatus.UPCOMING : RentStatus.DUE
+            );
+        }
+        
+        rentScheduleRepository.save(schedule);
+        current = current.plusMonths(1);
+    }
+}
+```
+
+---
+
+### 3. Background Jobs
+
+#### Daily Status Update Job
 
 ```java
 @Scheduled(cron = "0 0 1 * * *") // Run at 1 AM daily
@@ -234,11 +344,10 @@ public void updateRentStatuses() {
     ).forEach(schedule -> {
         schedule.setStatus(RentStatus.DUE);
         rentScheduleRepository.save(schedule);
-        // Send notification to tenant
         notificationService.sendRentDueReminder(schedule);
     });
     
-    // Mark DUE → OVERDUE when grace period expires
+    // Mark DUE → OVERDUE when grace period expires (5 days)
     rentScheduleRepository.findByStatusAndDueDateBefore(
         RentStatus.DUE, today.minusDays(5)
     ).forEach(schedule -> {
@@ -250,13 +359,12 @@ public void updateRentStatuses() {
             schedule.setLateFeeApplied(true);
         }
         rentScheduleRepository.save(schedule);
-        // Send overdue notification
         notificationService.sendRentOverdueNotice(schedule);
     });
 }
 ```
 
-#### 4.2 Rent Reminder Notifications
+#### Rent Reminder Notifications
 
 ```java
 @Scheduled(cron = "0 0 9 * * *") // Run at 9 AM daily
@@ -281,7 +389,54 @@ public void sendRentReminders() {
 
 ---
 
-### 5. TypeScript Interfaces (Frontend)
+### 4. Database Schema
+
+```sql
+CREATE TABLE rent_schedules (
+    id BIGSERIAL PRIMARY KEY,
+    lease_id BIGINT NOT NULL REFERENCES lease_agreements(id),
+    due_date DATE NOT NULL,
+    period_start DATE NOT NULL,
+    period_end DATE NOT NULL,
+    amount_due DECIMAL(10,2) NOT NULL,
+    amount_paid DECIMAL(10,2) DEFAULT 0,
+    status VARCHAR(20) NOT NULL DEFAULT 'UPCOMING',
+    paid_at TIMESTAMP,
+    payment_id BIGINT REFERENCES payments(id),
+    grace_period_days INTEGER DEFAULT 5,
+    late_fee_amount DECIMAL(10,2),
+    late_fee_applied BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    
+    CONSTRAINT unique_lease_due_date UNIQUE(lease_id, due_date)
+);
+
+CREATE INDEX idx_rent_schedules_lease ON rent_schedules(lease_id);
+CREATE INDEX idx_rent_schedules_status ON rent_schedules(status);
+CREATE INDEX idx_rent_schedules_due_date ON rent_schedules(due_date);
+```
+
+---
+
+### 5. Integration with Payment System
+
+When tenant pays via `/rent-schedule/{id}/pay`:
+
+1. Validate lease status is ACTIVE
+2. Validate rent schedule belongs to lease
+3. Validate tenant is the payer
+4. Validate payment amount doesn't exceed remaining due
+5. Create `Payment` record with type `RENT`
+6. Update `RentSchedule`:
+   - Add to `amountPaid`
+   - Set `status` to `PAID` (or `PARTIAL` if not fully paid)
+   - Set `paidAt` timestamp
+   - Link `paymentId` to new payment
+
+---
+
+## TypeScript Interfaces (Frontend)
 
 ```typescript
 interface RentScheduleItemDTO {
@@ -320,67 +475,48 @@ interface PayRentResponseDTO {
   rentSchedule: RentScheduleItemDTO;
   payment: PaymentResponseDTO;
 }
+
+interface WaiveRentRequestDTO {
+  reason: string;
+}
 ```
 
 ---
 
-### 6. Database Schema
+## Typical Flow
 
-```sql
-CREATE TABLE rent_schedules (
-    id BIGSERIAL PRIMARY KEY,
-    lease_id BIGINT NOT NULL REFERENCES lease_agreements(id),
-    due_date DATE NOT NULL,
-    period_start DATE NOT NULL,
-    period_end DATE NOT NULL,
-    amount_due DECIMAL(10,2) NOT NULL,
-    amount_paid DECIMAL(10,2) DEFAULT 0,
-    status VARCHAR(20) NOT NULL DEFAULT 'UPCOMING',
-    paid_at TIMESTAMP,
-    payment_id BIGINT REFERENCES payments(id),
-    grace_period_days INTEGER DEFAULT 5,
-    late_fee_amount DECIMAL(10,2),
-    late_fee_applied BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    
-    CONSTRAINT unique_lease_due_date UNIQUE(lease_id, due_date)
-);
-
-CREATE INDEX idx_rent_schedules_lease ON rent_schedules(lease_id);
-CREATE INDEX idx_rent_schedules_status ON rent_schedules(status);
-CREATE INDEX idx_rent_schedules_due_date ON rent_schedules(due_date);
 ```
+1. Lease becomes ACTIVE (via acceptance-payment)
+   → System auto-generates 12 rent entries (for 1-year lease)
+   → First month is already PAID (part of acceptance payment)
 
----
+2. Each month:
+   - Background job updates UPCOMING → DUE on due date
+   - Background job updates DUE → OVERDUE after grace period
+   - Tenant receives notifications
 
-### 7. API Endpoints Summary
+3. Tenant pays:
+   GET /api/leases/{id}/rent-schedule/current
+   → See what's due
 
-| Method | Endpoint | Actor | Description |
-|--------|----------|-------|-------------|
-| GET | `/api/leases/{id}/rent-schedule` | All | Get full rent schedule |
-| GET | `/api/leases/{id}/rent-schedule/current` | All | Get current month due |
-| POST | `/api/leases/{id}/rent-schedule/{scheduleId}/pay` | Tenant | Pay specific month |
-| PATCH | `/api/leases/{id}/rent-schedule/{scheduleId}/waive` | Landlord | Waive rent |
-| GET | `/api/payments/tenant/upcoming` | Tenant | Get all upcoming rent dues |
+   POST /api/leases/{id}/rent-schedule/{scheduleId}/pay
+   → Pay the rent
+   → Status: DUE → PAID
 
----
+4. Landlord can view:
+   GET /api/leases/{id}/rent-schedule
+   → See full payment history and upcoming
 
-### 8. Integration with Existing Payment API
-
-When tenant pays via `/rent-schedule/{id}/pay`:
-1. Create `Payment` record with type `RENT`
-2. Update `RentSchedule.status` to `PAID`
-3. Link `RentSchedule.paymentId` to new payment
-4. Set `RentSchedule.paidAt` timestamp
-
-This keeps the existing payment history intact while adding structured rent tracking.
+5. If tenant can't pay, landlord can:
+   PATCH /api/leases/{id}/rent-schedule/{scheduleId}/waive
+   → Waive that month's rent
+```
 
 ---
 
 ## Summary
 
-**What backend needs to implement:**
+**Backend needs to implement:**
 1. ✅ New `RentSchedule` entity and repository
 2. ✅ Auto-generate schedule when lease becomes ACTIVE
 3. ✅ New endpoints for rent schedule CRUD
@@ -388,5 +524,3 @@ This keeps the existing payment history intact while adding structured rent trac
 5. ✅ Background job for reminder notifications
 6. ✅ Late fee calculation logic
 7. ✅ Integration with existing Payment entity
-
-Once implemented, the frontend can display a calendar/timeline view of rent payments with clear status indicators.

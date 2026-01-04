@@ -13,8 +13,11 @@ import {
   XCircle,
   RefreshCw,
   Loader2,
+  CalendarDays,
+  CircleDollarSign,
+  TrendingUp,
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -34,16 +37,34 @@ import {
 } from '@/components/ui/select';
 import { StatsCard } from '@/components/dashboard/StatsCard';
 import { leaseApi } from '@/lib/api/leaseApi';
-import { paymentApi, PaymentResponseDTO, PaymentStatus, PaymentType } from '@/lib/api/paymentApi';
+import { 
+  paymentApi, 
+  PaymentResponseDTO, 
+  PaymentStatus, 
+  PaymentType,
+  RentScheduleDTO,
+  RentScheduleItemDTO,
+  RentStatus
+} from '@/lib/api/paymentApi';
 import { toast } from 'sonner';
-import { LeasePaymentModal } from '@/components/tenant/LeasePaymentModal';
+import { RentPaymentModal } from '@/components/tenant/RentPaymentModal';
+import { Progress } from '@/components/ui/progress';
 
-const statusConfig: Record<PaymentStatus, { label: string; icon: typeof CheckCircle2; className: string }> = {
+const paymentStatusConfig: Record<PaymentStatus, { label: string; icon: typeof CheckCircle2; className: string }> = {
   COMPLETED: { label: 'Paid', icon: CheckCircle2, className: 'bg-accent/10 text-accent' },
   PENDING: { label: 'Pending', icon: Clock, className: 'bg-warning/10 text-warning' },
   OVERDUE: { label: 'Overdue', icon: AlertTriangle, className: 'bg-destructive/10 text-destructive' },
   FAILED: { label: 'Failed', icon: XCircle, className: 'bg-destructive/10 text-destructive' },
   REFUNDED: { label: 'Refunded', icon: RefreshCw, className: 'bg-muted text-muted-foreground' },
+};
+
+const rentStatusConfig: Record<RentStatus, { label: string; icon: typeof CheckCircle2; className: string }> = {
+  PAID: { label: 'Paid', icon: CheckCircle2, className: 'bg-accent/10 text-accent' },
+  DUE: { label: 'Due', icon: Clock, className: 'bg-warning/10 text-warning' },
+  UPCOMING: { label: 'Upcoming', icon: Calendar, className: 'bg-muted text-muted-foreground' },
+  PARTIAL: { label: 'Partial', icon: TrendingUp, className: 'bg-info/10 text-info' },
+  OVERDUE: { label: 'Overdue', icon: AlertTriangle, className: 'bg-destructive/10 text-destructive' },
+  WAIVED: { label: 'Waived', icon: CheckCircle2, className: 'bg-primary/10 text-primary' },
 };
 
 const typeLabels: Record<PaymentType, string> = {
@@ -59,7 +80,7 @@ export default function Payments() {
   const [filter, setFilter] = useState<string>('all');
   const [sortOrder, setSortOrder] = useState<string>('newest');
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
-  const [selectedLease, setSelectedLease] = useState<any>(null);
+  const [selectedRentItem, setSelectedRentItem] = useState<{ lease: any; rentItem: RentScheduleItemDTO } | null>(null);
 
   // Fetch all tenant leases
   const { data: leases = [], isLoading: leasesLoading } = useQuery({
@@ -70,7 +91,21 @@ export default function Payments() {
   // Get active leases for payment
   const activeLeases = leases.filter(l => l.status === 'ACTIVE');
 
-  // Fetch payments for all active leases
+  // Fetch rent schedules for all active leases
+  const { data: rentSchedules = [], isLoading: schedulesLoading, refetch: refetchSchedules } = useQuery({
+    queryKey: ['tenant-rent-schedules', activeLeases.map(l => l.id)],
+    queryFn: async () => {
+      if (activeLeases.length === 0) return [];
+      const schedulePromises = activeLeases.map(lease => 
+        paymentApi.getRentSchedule(lease.id).catch(() => null)
+      );
+      const results = await Promise.all(schedulePromises);
+      return results.filter((r): r is RentScheduleDTO => r !== null);
+    },
+    enabled: activeLeases.length > 0,
+  });
+
+  // Fetch payment history for all active leases
   const { data: allPayments = [], isLoading: paymentsLoading, refetch: refetchPayments } = useQuery({
     queryKey: ['tenant-payments', activeLeases.map(l => l.id)],
     queryFn: async () => {
@@ -84,16 +119,28 @@ export default function Payments() {
     enabled: activeLeases.length > 0,
   });
 
-  // Calculate stats
-  const pendingPayments = allPayments.filter(p => p.status === 'PENDING' || p.status === 'OVERDUE');
+  // Calculate stats from rent schedules
+  const totalStats = rentSchedules.reduce((acc, schedule) => {
+    acc.totalMonths += schedule.totalMonths;
+    acc.paidMonths += schedule.paidMonths;
+    acc.upcomingMonths += schedule.upcomingMonths;
+    acc.overdueMonths += schedule.overdueMonths;
+    return acc;
+  }, { totalMonths: 0, paidMonths: 0, upcomingMonths: 0, overdueMonths: 0 });
+
+  // Get current/overdue rent items
+  const currentDueItems = rentSchedules.flatMap(schedule => 
+    schedule.schedule.filter(item => item.status === 'DUE' || item.status === 'OVERDUE')
+  );
+
+  const overdueAmount = currentDueItems
+    .filter(item => item.status === 'OVERDUE')
+    .reduce((sum, item) => sum + (item.amountDue - item.amountPaid), 0);
+
+  const dueAmount = currentDueItems.reduce((sum, item) => sum + (item.amountDue - item.amountPaid), 0);
+
   const completedPayments = allPayments.filter(p => p.status === 'COMPLETED');
   const totalPaid = completedPayments.reduce((sum, p) => sum + p.amount, 0);
-  const totalPending = pendingPayments.reduce((sum, p) => sum + p.amount, 0);
-  
-  const rentPayments = completedPayments.filter(p => p.type === 'RENT');
-  const averageMonthly = rentPayments.length > 0 
-    ? rentPayments.reduce((sum, p) => sum + p.amount, 0) / rentPayments.length 
-    : 0;
 
   // Filter and sort payments
   let filteredPayments = filter === 'all'
@@ -106,8 +153,8 @@ export default function Payments() {
     return sortOrder === 'newest' ? dateB - dateA : dateA - dateB;
   });
 
-  const handlePayNow = (lease: any) => {
-    setSelectedLease(lease);
+  const handlePayRent = (lease: any, rentItem: RentScheduleItemDTO) => {
+    setSelectedRentItem({ lease, rentItem });
     setPaymentModalOpen(true);
   };
 
@@ -116,11 +163,12 @@ export default function Payments() {
   };
 
   const handlePaymentSuccess = () => {
+    refetchSchedules();
     refetchPayments();
     toast.success('Payment completed successfully');
   };
 
-  const isLoading = leasesLoading || paymentsLoading;
+  const isLoading = leasesLoading || schedulesLoading || paymentsLoading;
 
   if (isLoading) {
     return (
@@ -140,13 +188,13 @@ export default function Payments() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <StatsCard
           title="Outstanding Balance"
-          value={`$${totalPending.toLocaleString()}`}
-          subtitle={pendingPayments.length > 0 ? `${pendingPayments.length} pending payment(s)` : 'All paid up!'}
-          icon={CreditCard}
-          iconClassName="bg-primary/10 text-primary"
+          value={`$${dueAmount.toLocaleString()}`}
+          subtitle={overdueAmount > 0 ? `$${overdueAmount.toLocaleString()} overdue` : 'All current!'}
+          icon={CircleDollarSign}
+          iconClassName={overdueAmount > 0 ? "bg-destructive/10 text-destructive" : "bg-primary/10 text-primary"}
         />
         <StatsCard
           title="Total Paid (YTD)"
@@ -156,42 +204,142 @@ export default function Payments() {
           iconClassName="bg-accent/10 text-accent"
         />
         <StatsCard
-          title="Average Monthly"
-          value={`$${averageMonthly.toLocaleString()}`}
-          subtitle="Based on rent payments"
-          icon={Calendar}
+          title="Paid Months"
+          value={`${totalStats.paidMonths}/${totalStats.totalMonths}`}
+          subtitle={`${totalStats.upcomingMonths} upcoming`}
+          icon={CalendarDays}
           iconClassName="bg-info/10 text-info"
+        />
+        <StatsCard
+          title="Overdue"
+          value={totalStats.overdueMonths.toString()}
+          subtitle={totalStats.overdueMonths === 0 ? "All caught up!" : "Needs attention"}
+          icon={AlertTriangle}
+          iconClassName={totalStats.overdueMonths > 0 ? "bg-destructive/10 text-destructive" : "bg-accent/10 text-accent"}
         />
       </div>
 
-      {/* Active Leases - Quick Pay */}
-      {activeLeases.length > 0 && (
-        <Card className="border-primary/50 bg-primary/5">
+      {/* Rent Schedule - Current Due */}
+      {currentDueItems.length > 0 && (
+        <Card className="border-warning/50 bg-warning/5">
           <CardHeader>
-            <CardTitle className="text-lg">Quick Pay</CardTitle>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Clock className="h-5 w-5 text-warning" />
+              Rent Due
+            </CardTitle>
+            <CardDescription>These payments need your attention</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            {activeLeases.map(lease => (
-              <div key={lease.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 bg-background rounded-lg border">
-                <div className="flex items-center gap-4">
-                  <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                    <CreditCard className="h-6 w-6 text-primary" />
+            {currentDueItems.map((item) => {
+              const lease = activeLeases.find(l => 
+                rentSchedules.find(s => s.leaseId === l.id)?.schedule.includes(item)
+              );
+              const config = rentStatusConfig[item.status];
+              const StatusIcon = config.icon;
+              
+              return (
+                <div key={item.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 bg-background rounded-lg border">
+                  <div className="flex items-center gap-4">
+                    <div className={`h-12 w-12 rounded-full flex items-center justify-center ${
+                      item.status === 'OVERDUE' ? 'bg-destructive/10' : 'bg-warning/10'
+                    }`}>
+                      <CreditCard className={`h-6 w-6 ${
+                        item.status === 'OVERDUE' ? 'text-destructive' : 'text-warning'
+                      }`} />
+                    </div>
+                    <div>
+                      <p className="font-medium">{lease?.propertyTitle || 'Rent Payment'}</p>
+                      <p className="text-sm text-muted-foreground">
+                        Due: {format(parseISO(item.dueDate), 'MMM d, yyyy')}
+                        {item.daysOverdue && item.daysOverdue > 0 && (
+                          <span className="text-destructive ml-2">({item.daysOverdue} days overdue)</span>
+                        )}
+                        {item.daysUntilDue !== null && item.daysUntilDue > 0 && (
+                          <span className="text-muted-foreground ml-2">({item.daysUntilDue} days left)</span>
+                        )}
+                      </p>
+                      {item.gracePeriodEnds && (
+                        <p className="text-xs text-muted-foreground">
+                          Grace period ends: {format(parseISO(item.gracePeriodEnds), 'MMM d')}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-medium">{lease.propertyTitle}</p>
-                    <p className="text-sm text-muted-foreground">
-                      Rent: ${lease.rentAmount.toLocaleString()}/month
-                    </p>
+                  <div className="flex items-center gap-4">
+                    <div className="text-right">
+                      <p className="font-semibold text-lg">${(item.amountDue - item.amountPaid).toLocaleString()}</p>
+                      <Badge variant="secondary" className={config.className}>
+                        <StatusIcon className="h-3 w-3 mr-1" />
+                        {config.label}
+                      </Badge>
+                    </div>
+                    <Button 
+                      onClick={() => lease && handlePayRent(lease, item)}
+                      variant={item.status === 'OVERDUE' ? 'destructive' : 'default'}
+                    >
+                      Pay Now
+                    </Button>
                   </div>
                 </div>
-                <Button onClick={() => handlePayNow(lease)}>
-                  Make Payment
-                </Button>
-              </div>
-            ))}
+              );
+            })}
           </CardContent>
         </Card>
       )}
+
+      {/* Rent Schedule Timeline */}
+      {rentSchedules.map((schedule) => {
+        const lease = activeLeases.find(l => l.id === schedule.leaseId);
+        if (!lease) return null;
+        
+        const progressPercent = (schedule.paidMonths / schedule.totalMonths) * 100;
+        
+        return (
+          <Card key={schedule.leaseId}>
+            <CardHeader>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                <div>
+                  <CardTitle className="text-lg">{lease.propertyTitle}</CardTitle>
+                  <CardDescription>
+                    ${schedule.rentAmount.toLocaleString()}/month • {schedule.totalMonths} months total
+                  </CardDescription>
+                </div>
+                <Badge variant="outline">
+                  {schedule.paidMonths} of {schedule.totalMonths} paid
+                </Badge>
+              </div>
+              <Progress value={progressPercent} className="h-2 mt-2" />
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
+                {schedule.schedule.map((item) => {
+                  const config = rentStatusConfig[item.status];
+                  const StatusIcon = config.icon;
+                  const isPayable = item.status === 'DUE' || item.status === 'OVERDUE' || item.status === 'PARTIAL';
+                  
+                  return (
+                    <div
+                      key={item.id}
+                      className={`p-3 rounded-lg border text-center cursor-pointer transition-colors ${
+                        isPayable ? 'hover:border-primary hover:bg-primary/5' : ''
+                      } ${config.className.replace('text-', 'border-').split(' ')[0]}/20`}
+                      onClick={() => isPayable && handlePayRent(lease, item)}
+                    >
+                      <p className="text-xs text-muted-foreground">
+                        {format(parseISO(item.periodStart), 'MMM yyyy')}
+                      </p>
+                      <div className="flex items-center justify-center my-1">
+                        <StatusIcon className={`h-4 w-4 ${config.className.split(' ')[1]}`} />
+                      </div>
+                      <p className="text-xs font-medium">{config.label}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })}
 
       {/* No Active Leases */}
       {activeLeases.length === 0 && (
@@ -256,7 +404,7 @@ export default function Payments() {
                 </TableHeader>
                 <TableBody>
                   {filteredPayments.map((payment) => {
-                    const config = statusConfig[payment.status];
+                    const config = paymentStatusConfig[payment.status];
                     const StatusIcon = config.icon;
                     const displayDate = payment.paymentDate || payment.dueDate;
                     return (
@@ -322,12 +470,13 @@ export default function Payments() {
         </CardContent>
       </Card>
 
-      {/* Payment Modal */}
-      {selectedLease && (
-        <LeasePaymentModal
+      {/* Rent Payment Modal */}
+      {selectedRentItem && (
+        <RentPaymentModal
           open={paymentModalOpen}
           onOpenChange={setPaymentModalOpen}
-          lease={selectedLease}
+          lease={selectedRentItem.lease}
+          rentItem={selectedRentItem.rentItem}
           onPaymentComplete={handlePaymentSuccess}
         />
       )}
