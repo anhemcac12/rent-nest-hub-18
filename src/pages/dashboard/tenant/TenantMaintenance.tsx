@@ -57,6 +57,7 @@ import {
   MaintenancePriority,
 } from '@/lib/api/maintenanceApi';
 import { leaseApi } from '@/lib/api/leaseApi';
+import { ImageLightbox } from '@/components/maintenance/ImageLightbox';
 
 const MAX_IMAGES = 10;
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB per image
@@ -86,6 +87,7 @@ function MaintenanceCard({
   onCancel: (id: number) => void;
 }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const statusCfg = statusConfig[item.status];
   const priorityCfg = priorityConfig[item.priority];
   const StatusIcon = statusCfg.icon;
@@ -167,16 +169,26 @@ function MaintenanceCard({
 
                   {/* Display images if any */}
                   {details.images && details.images.length > 0 && (
-                    <div className="flex flex-wrap gap-2">
-                      {details.images.map((img) => (
-                        <img
-                          key={img.id}
-                          src={img.fileUrl}
-                          alt={img.fileName}
-                          className="h-20 w-20 object-cover rounded-lg border"
+                    <>
+                      <div className="flex flex-wrap gap-2">
+                        {details.images.map((img, index) => (
+                          <img
+                            key={img.id}
+                            src={img.url}
+                            alt={`Maintenance image ${index + 1}`}
+                            className="h-20 w-20 object-cover rounded-lg border cursor-pointer hover:opacity-80 transition-opacity"
+                            onClick={() => setLightboxIndex(index)}
+                          />
+                        ))}
+                      </div>
+                      {lightboxIndex !== null && (
+                        <ImageLightbox
+                          images={details.images}
+                          initialIndex={lightboxIndex}
+                          onClose={() => setLightboxIndex(null)}
                         />
-                      ))}
-                    </div>
+                      )}
+                    </>
                   )}
 
                   {details.scheduledFor && (

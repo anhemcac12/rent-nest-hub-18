@@ -17,8 +17,7 @@ export type ActorType = 'TENANT' | 'LANDLORD' | 'PROPERTY_MANAGER' | 'SYSTEM';
 
 export interface MaintenanceImage {
   id: number;
-  fileName: string;
-  fileUrl: string;
+  url: string;
   uploadedAt: string;
 }
 
