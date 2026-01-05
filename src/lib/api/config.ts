@@ -79,6 +79,24 @@ export const API_ENDPOINTS = {
   CONVERSATION_READ: (conversationId: number) => `/api/conversations/${conversationId}/read`,
   CONVERSATION_BY_PROPERTY: (propertyId: number) => `/api/conversations/property/${propertyId}`,
   CONVERSATIONS_UNREAD_COUNT: "/api/conversations/unread-count",
+
+  // Maintenance Requests
+  MAINTENANCE: "/api/maintenance",
+  MAINTENANCE_MY: "/api/maintenance/my",
+  MAINTENANCE_DETAIL: (id: number) => `/api/maintenance/${id}`,
+  MAINTENANCE_CANCEL: (id: number) => `/api/maintenance/${id}/cancel`,
+  MAINTENANCE_COMMENTS: (id: number) => `/api/maintenance/${id}/comments`,
+  MAINTENANCE_IMAGES: (id: number) => `/api/maintenance/${id}/images`,
+  MAINTENANCE_TIMELINE: (id: number) => `/api/maintenance/${id}/timeline`,
+  MAINTENANCE_FOR_LANDLORD: "/api/maintenance/for-landlord",
+  MAINTENANCE_SUMMARY: "/api/maintenance/summary",
+  MAINTENANCE_ACCEPT: (id: number) => `/api/maintenance/${id}/accept`,
+  MAINTENANCE_REJECT: (id: number) => `/api/maintenance/${id}/reject`,
+  MAINTENANCE_START: (id: number) => `/api/maintenance/${id}/start`,
+  MAINTENANCE_SCHEDULE: (id: number) => `/api/maintenance/${id}/schedule`,
+  MAINTENANCE_RESOLVE: (id: number) => `/api/maintenance/${id}/resolve`,
+  MAINTENANCE_REOPEN: (id: number) => `/api/maintenance/${id}/reopen`,
+  MAINTENANCE_PRIORITY: (id: number) => `/api/maintenance/${id}/priority`,
 } as const;
 
 // Token storage keys
