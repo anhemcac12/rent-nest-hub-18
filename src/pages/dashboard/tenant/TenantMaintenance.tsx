@@ -51,12 +51,15 @@ import {
   getMaintenanceRequestDetail,
   createMaintenanceRequest,
   cancelMaintenanceRequest,
-  MaintenanceRequest,
+  uploadMaintenanceImage,
   MaintenanceListItem,
   MaintenanceStatus,
   MaintenancePriority,
 } from '@/lib/api/maintenanceApi';
 import { leaseApi } from '@/lib/api/leaseApi';
+
+const MAX_IMAGES = 10;
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB per image
 
 const statusConfig: Record<MaintenanceStatus, { label: string; icon: typeof AlertTriangle; className: string }> = {
   OPEN: { label: 'Open', icon: AlertTriangle, className: 'bg-warning/10 text-warning' },
@@ -244,7 +247,9 @@ function NewRequestDialog({ onSuccess }: { onSuccess: () => void }) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState<MaintenancePriority>('MEDIUM');
-  const [images, setImages] = useState<string[]>([]);
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch active leases
@@ -255,47 +260,63 @@ function NewRequestDialog({ onSuccess }: { onSuccess: () => void }) {
 
   const activeLeases = leases.filter(l => l.status === 'ACTIVE');
 
-  const createMutation = useMutation({
-    mutationFn: createMaintenanceRequest,
-    onSuccess: () => {
-      toast.success('Maintenance request submitted');
-      setOpen(false);
-      resetForm();
-      onSuccess();
-    },
-    onError: (error: Error) => {
-      toast.error(error.message || 'Failed to submit request');
-    },
-  });
-
   const resetForm = () => {
     setLeaseId('');
     setTitle('');
     setDescription('');
     setPriority('MEDIUM');
-    setImages([]);
+    setImageFiles([]);
+    setImagePreviews([]);
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
 
-    Array.from(files).forEach((file) => {
-      if (file.type.startsWith('image/')) {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          setImages((prev) => [...prev, reader.result as string]);
-        };
-        reader.readAsDataURL(file);
+    const remainingSlots = MAX_IMAGES - imageFiles.length;
+    if (remainingSlots <= 0) {
+      toast.error(`Maximum ${MAX_IMAGES} images allowed`);
+      return;
+    }
+
+    const filesToAdd = Array.from(files).slice(0, remainingSlots);
+    const validFiles: File[] = [];
+    const newPreviews: string[] = [];
+
+    filesToAdd.forEach((file) => {
+      if (!file.type.startsWith('image/')) {
+        toast.error(`${file.name} is not an image`);
+        return;
       }
+      if (file.size > MAX_FILE_SIZE) {
+        toast.error(`${file.name} exceeds 5MB limit`);
+        return;
+      }
+      validFiles.push(file);
+      newPreviews.push(URL.createObjectURL(file));
     });
+
+    if (filesToAdd.length > remainingSlots) {
+      toast.info(`Only added ${remainingSlots} images (max ${MAX_IMAGES})`);
+    }
+
+    setImageFiles((prev) => [...prev, ...validFiles]);
+    setImagePreviews((prev) => [...prev, ...newPreviews]);
+    
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   const removeImage = (index: number) => {
-    setImages((prev) => prev.filter((_, i) => i !== index));
+    // Revoke the object URL to avoid memory leaks
+    URL.revokeObjectURL(imagePreviews[index]);
+    setImageFiles((prev) => prev.filter((_, i) => i !== index));
+    setImagePreviews((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!leaseId) {
@@ -303,13 +324,41 @@ function NewRequestDialog({ onSuccess }: { onSuccess: () => void }) {
       return;
     }
 
-    createMutation.mutate({
-      leaseId: parseInt(leaseId),
-      title,
-      description,
-      priority,
-      imageIds: [], // TODO: implement image upload first then include IDs
-    });
+    setIsUploading(true);
+
+    try {
+      // Step 1: Create the maintenance request first (without images)
+      const newRequest = await createMaintenanceRequest({
+        leaseId: parseInt(leaseId),
+        title,
+        description,
+        priority,
+        imageIds: [],
+      });
+
+      // Step 2: Upload images to the created request
+      if (imageFiles.length > 0) {
+        const uploadPromises = imageFiles.map((file) => 
+          uploadMaintenanceImage(newRequest.id, file)
+        );
+        
+        try {
+          await Promise.all(uploadPromises);
+        } catch (uploadError) {
+          console.error('Some images failed to upload:', uploadError);
+          toast.warning('Request created but some images failed to upload');
+        }
+      }
+
+      toast.success('Maintenance request submitted');
+      setOpen(false);
+      resetForm();
+      onSuccess();
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to submit request');
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   return (
@@ -385,9 +434,9 @@ function NewRequestDialog({ onSuccess }: { onSuccess: () => void }) {
             
             {/* Image Upload Section */}
             <div className="space-y-2">
-              <Label>Photos (optional)</Label>
+              <Label>Photos (optional, max {MAX_IMAGES})</Label>
               <div className="flex flex-wrap gap-2">
-                {images.map((img, index) => (
+                {imagePreviews.map((img, index) => (
                   <div key={index} className="relative group">
                     <img
                       src={img}
@@ -403,14 +452,16 @@ function NewRequestDialog({ onSuccess }: { onSuccess: () => void }) {
                     </button>
                   </div>
                 ))}
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="h-20 w-20 border-2 border-dashed border-muted-foreground/25 rounded-lg flex flex-col items-center justify-center gap-1 hover:border-primary/50 hover:bg-primary/5 transition-colors"
-                >
-                  <Upload className="h-5 w-5 text-muted-foreground" />
-                  <span className="text-xs text-muted-foreground">Add</span>
-                </button>
+                {imageFiles.length < MAX_IMAGES && (
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="h-20 w-20 border-2 border-dashed border-muted-foreground/25 rounded-lg flex flex-col items-center justify-center gap-1 hover:border-primary/50 hover:bg-primary/5 transition-colors"
+                  >
+                    <Upload className="h-5 w-5 text-muted-foreground" />
+                    <span className="text-xs text-muted-foreground">Add</span>
+                  </button>
+                )}
               </div>
               <input
                 ref={fileInputRef}
@@ -421,7 +472,7 @@ function NewRequestDialog({ onSuccess }: { onSuccess: () => void }) {
                 className="hidden"
               />
               <p className="text-xs text-muted-foreground">
-                Upload photos to help describe the issue
+                {imageFiles.length}/{MAX_IMAGES} photos • Max 5MB each
               </p>
             </div>
           </div>
@@ -429,9 +480,9 @@ function NewRequestDialog({ onSuccess }: { onSuccess: () => void }) {
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={createMutation.isPending}>
-              {createMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Submit Request
+            <Button type="submit" disabled={isUploading}>
+              {isUploading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              {isUploading ? 'Uploading...' : 'Submit Request'}
             </Button>
           </DialogFooter>
         </form>
