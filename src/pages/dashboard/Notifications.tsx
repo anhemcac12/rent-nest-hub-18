@@ -1,62 +1,120 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Bell, Check, CheckCheck, Trash2, FileText, MessageSquare, Home, CreditCard, Wrench, Info } from 'lucide-react';
+import { Bell, Check, CheckCheck, Trash2, FileText, MessageSquare, Home, CreditCard, Wrench, Info, ScrollText, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { useAuth } from '@/contexts/AuthContext';
-import { getNotifications, markNotificationAsRead, markAllNotificationsAsRead, deleteNotification } from '@/lib/mockDatabase';
-import { Notification } from '@/types/tenant';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
+import { notificationsApi, Notification, NotificationType } from '@/lib/api/notificationsApi';
+import { toast } from 'sonner';
 
-const typeIcons = {
-  application: FileText,
-  message: MessageSquare,
-  property: Home,
-  payment: CreditCard,
-  maintenance: Wrench,
-  system: Info,
+const typeIcons: Record<NotificationType, React.ElementType> = {
+  APPLICATION: FileText,
+  MESSAGE: MessageSquare,
+  PROPERTY: Home,
+  PAYMENT: CreditCard,
+  MAINTENANCE: Wrench,
+  LEASE: ScrollText,
+  SYSTEM: Info,
 };
 
-const typeColors = {
-  application: 'bg-blue-500/10 text-blue-500',
-  message: 'bg-green-500/10 text-green-500',
-  property: 'bg-purple-500/10 text-purple-500',
-  payment: 'bg-yellow-500/10 text-yellow-500',
-  maintenance: 'bg-orange-500/10 text-orange-500',
-  system: 'bg-muted text-muted-foreground',
+const typeColors: Record<NotificationType, string> = {
+  APPLICATION: 'bg-blue-500/10 text-blue-500',
+  MESSAGE: 'bg-green-500/10 text-green-500',
+  PROPERTY: 'bg-purple-500/10 text-purple-500',
+  PAYMENT: 'bg-yellow-500/10 text-yellow-500',
+  MAINTENANCE: 'bg-orange-500/10 text-orange-500',
+  LEASE: 'bg-indigo-500/10 text-indigo-500',
+  SYSTEM: 'bg-muted text-muted-foreground',
 };
 
 export default function Notifications() {
-  const { user } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [totalElements, setTotalElements] = useState(0);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+
+  const fetchNotifications = async (pageNum: number = 0) => {
+    try {
+      setLoading(true);
+      const response = await notificationsApi.getNotifications({ page: pageNum, size: 20 });
+      if (pageNum === 0) {
+        setNotifications(response.content);
+      } else {
+        setNotifications(prev => [...prev, ...response.content]);
+      }
+      setTotalElements(response.totalElements);
+      setHasMore(pageNum < response.totalPages - 1);
+      setPage(pageNum);
+    } catch (error) {
+      console.error('Failed to fetch notifications:', error);
+      toast.error('Failed to load notifications');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    if (user) {
-      setNotifications(getNotifications(user.id));
+    fetchNotifications();
+  }, []);
+
+  const handleMarkAsRead = async (notificationId: number) => {
+    try {
+      await notificationsApi.markAsRead(notificationId);
+      setNotifications(prev => 
+        prev.map(n => n.id === notificationId ? { ...n, read: true } : n)
+      );
+    } catch (error) {
+      console.error('Failed to mark as read:', error);
+      toast.error('Failed to mark notification as read');
     }
-  }, [user]);
-
-  const handleMarkAsRead = (notificationId: string) => {
-    if (!user) return;
-    markNotificationAsRead(user.id, notificationId);
-    setNotifications(getNotifications(user.id));
   };
 
-  const handleMarkAllAsRead = () => {
-    if (!user) return;
-    markAllNotificationsAsRead(user.id);
-    setNotifications(getNotifications(user.id));
+  const handleMarkAllAsRead = async () => {
+    try {
+      await notificationsApi.markAllAsRead();
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+      toast.success('All notifications marked as read');
+    } catch (error) {
+      console.error('Failed to mark all as read:', error);
+      toast.error('Failed to mark all as read');
+    }
   };
 
-  const handleDelete = (notificationId: string) => {
-    if (!user) return;
-    deleteNotification(user.id, notificationId);
-    setNotifications(getNotifications(user.id));
+  const handleDelete = async (notificationId: number) => {
+    try {
+      await notificationsApi.deleteNotification(notificationId);
+      setNotifications(prev => prev.filter(n => n.id !== notificationId));
+      toast.success('Notification deleted');
+    } catch (error) {
+      console.error('Failed to delete notification:', error);
+      toast.error('Failed to delete notification');
+    }
+  };
+
+  const handleDeleteAllRead = async () => {
+    try {
+      const response = await notificationsApi.deleteAllRead();
+      setNotifications(prev => prev.filter(n => !n.read));
+      toast.success(`Deleted ${response.count} read notifications`);
+    } catch (error) {
+      console.error('Failed to delete read notifications:', error);
+      toast.error('Failed to delete read notifications');
+    }
   };
 
   const unreadCount = notifications.filter((n) => !n.read).length;
+  const readCount = notifications.filter((n) => n.read).length;
+
+  if (loading && notifications.length === 0) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -67,12 +125,20 @@ export default function Notifications() {
             {unreadCount > 0 ? `You have ${unreadCount} unread notification${unreadCount > 1 ? 's' : ''}` : 'All caught up!'}
           </p>
         </div>
-        {unreadCount > 0 && (
-          <Button variant="outline" onClick={handleMarkAllAsRead}>
-            <CheckCheck className="mr-2 h-4 w-4" />
-            Mark all as read
-          </Button>
-        )}
+        <div className="flex gap-2">
+          {readCount > 0 && (
+            <Button variant="outline" onClick={handleDeleteAllRead}>
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete read
+            </Button>
+          )}
+          {unreadCount > 0 && (
+            <Button variant="outline" onClick={handleMarkAllAsRead}>
+              <CheckCheck className="mr-2 h-4 w-4" />
+              Mark all as read
+            </Button>
+          )}
+        </div>
       </div>
 
       {notifications.length === 0 ? (
@@ -90,8 +156,8 @@ export default function Notifications() {
       ) : (
         <div className="space-y-3">
           {notifications.map((notification) => {
-            const Icon = typeIcons[notification.type];
-            const colorClass = typeColors[notification.type];
+            const Icon = typeIcons[notification.type] || Info;
+            const colorClass = typeColors[notification.type] || typeColors.SYSTEM;
 
             return (
               <Card
@@ -159,6 +225,19 @@ export default function Notifications() {
               </Card>
             );
           })}
+
+          {hasMore && (
+            <div className="flex justify-center pt-4">
+              <Button 
+                variant="outline" 
+                onClick={() => fetchNotifications(page + 1)}
+                disabled={loading}
+              >
+                {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                Load more
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </div>

@@ -13,8 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { getNotifications, markNotificationAsRead, getUnreadNotificationCount } from '@/lib/mockDatabase';
-import { Notification } from '@/types/tenant';
+import { notificationsApi, Notification } from '@/lib/api/notificationsApi';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { format } from 'date-fns';
@@ -36,11 +35,18 @@ export function Header() {
   const { user, isAuthenticated, logout } = useAuth();
 
   useEffect(() => {
-    if (user) {
-      setNotifications(getNotifications(user.id).slice(0, 5));
-      setUnreadCount(getUnreadNotificationCount(user.id));
+    if (isAuthenticated) {
+      // Fetch notifications
+      notificationsApi.getNotifications({ size: 5 })
+        .then(response => setNotifications(response.content))
+        .catch(err => console.error('Failed to fetch notifications:', err));
+      
+      // Fetch unread count
+      notificationsApi.getUnreadCount()
+        .then(response => setUnreadCount(response.count))
+        .catch(err => console.error('Failed to fetch unread count:', err));
     }
-  }, [user, location.pathname]);
+  }, [isAuthenticated, location.pathname]);
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -54,12 +60,17 @@ export function Header() {
     return user.fullName?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'U';
   };
 
-  const handleNotificationClick = (notification: Notification) => {
-    if (!user) return;
+  const handleNotificationClick = async (notification: Notification) => {
     if (!notification.read) {
-      markNotificationAsRead(user.id, notification.id);
-      setNotifications(getNotifications(user.id).slice(0, 5));
-      setUnreadCount(getUnreadNotificationCount(user.id));
+      try {
+        await notificationsApi.markAsRead(notification.id);
+        setNotifications(prev => 
+          prev.map(n => n.id === notification.id ? { ...n, read: true } : n)
+        );
+        setUnreadCount(prev => Math.max(0, prev - 1));
+      } catch (err) {
+        console.error('Failed to mark notification as read:', err);
+      }
     }
     if (notification.link) {
       navigate(notification.link);

@@ -97,6 +97,14 @@ export const API_ENDPOINTS = {
   MAINTENANCE_RESOLVE: (id: number) => `/api/maintenance/${id}/resolve`,
   MAINTENANCE_REOPEN: (id: number) => `/api/maintenance/${id}/reopen`,
   MAINTENANCE_PRIORITY: (id: number) => `/api/maintenance/${id}/priority`,
+
+  // Notifications
+  NOTIFICATIONS: "/api/notifications",
+  NOTIFICATIONS_UNREAD_COUNT: "/api/notifications/unread-count",
+  NOTIFICATION_MARK_READ: (id: number) => `/api/notifications/${id}/read`,
+  NOTIFICATIONS_READ_ALL: "/api/notifications/read-all",
+  NOTIFICATION_DELETE: (id: number) => `/api/notifications/${id}`,
+  NOTIFICATIONS_DELETE_READ: "/api/notifications/read",
 } as const;
 
 // Token storage keys

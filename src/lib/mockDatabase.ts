@@ -387,7 +387,7 @@ export function createApplication(
   // Create notification for the landlord
   createNotification(
     property.landlord.id,
-    'application',
+    'APPLICATION',
     'New Lease Application',
     `You received a new application for ${property.title}`,
     '/dashboard/applications'
@@ -482,7 +482,7 @@ export function createConversation(
   // Create notification for the landlord
   createNotification(
     landlordId,
-    'message',
+    'MESSAGE',
     'New Message',
     `You received a new message about ${propertyTitle}`,
     '/dashboard/messages'
@@ -517,11 +517,11 @@ export function createNotification(
   link?: string
 ): Notification {
   const now = new Date().toISOString();
-  const notifId = `notif-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  const notifId = Date.now();
 
   const newNotification: Notification = {
     id: notifId,
-    userId,
+    userId: parseInt(userId) || 0,
     type,
     title,
     description,
@@ -537,7 +537,7 @@ export function createNotification(
   return newNotification;
 }
 
-export function markNotificationAsRead(userId: string, notificationId: string): void {
+export function markNotificationAsRead(userId: string, notificationId: number): void {
   const notifs = getNotifications(userId);
   const updated = notifs.map((n) => 
     n.id === notificationId ? { ...n, read: true } : n
@@ -551,7 +551,7 @@ export function markAllNotificationsAsRead(userId: string): void {
   localStorage.setItem(getNotificationsKey(userId), JSON.stringify(updated));
 }
 
-export function deleteNotification(userId: string, notificationId: string): void {
+export function deleteNotification(userId: string, notificationId: number): void {
   const notifs = getNotifications(userId);
   const updated = notifs.filter((n) => n.id !== notificationId);
   localStorage.setItem(getNotificationsKey(userId), JSON.stringify(updated));
@@ -701,7 +701,7 @@ export function updateApplicationStatus(
       // Create notification for tenant
       createNotification(
         user.id,
-        'application',
+        'APPLICATION',
         status === 'approved' ? 'Application Approved!' : 'Application Update',
         status === 'approved' 
           ? `Your application for ${app.property.title} has been approved!`
@@ -850,7 +850,7 @@ export function createLeaseFromApplication(
   // Notify tenant
   createNotification(
     application.tenantId,
-    'application',
+    'LEASE',
     'New Lease Agreement',
     `A lease agreement for ${application.property.title} is ready for your review.`,
     '/dashboard/leases'
@@ -923,7 +923,7 @@ export function rejectLease(leaseId: string, reason: string): boolean {
       // Notify landlord
       createNotification(
         landlord.id,
-        'application',
+        'LEASE',
         'Lease Agreement Rejected',
         `${lease.tenantName} has rejected the lease for ${lease.property.title}.`,
         '/dashboard/leases'
@@ -960,7 +960,7 @@ export function processLeasePayment(leaseId: string): boolean {
       // Notify landlord
       createNotification(
         landlord.id,
-        'payment',
+        'PAYMENT',
         'Payment Received',
         `${lease.tenantName} has paid $${(lease.securityDeposit + lease.monthlyRent).toLocaleString()} for ${lease.property.title}.`,
         '/dashboard/leases'

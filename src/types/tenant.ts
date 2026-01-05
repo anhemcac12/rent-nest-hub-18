@@ -145,13 +145,18 @@ export interface ActivityItem {
   link?: string;
 }
 
+export type NotificationType = 'APPLICATION' | 'LEASE' | 'MAINTENANCE' | 'MESSAGE' | 'PAYMENT' | 'PROPERTY' | 'SYSTEM';
+export type RelatedEntityType = 'LEASE_APPLICATION' | 'LEASE_AGREEMENT' | 'MAINTENANCE_REQUEST' | 'CONVERSATION' | 'PAYMENT' | 'PROPERTY' | 'USER';
+
 export interface Notification {
-  id: string;
-  userId: string;
-  type: 'application' | 'message' | 'property' | 'payment' | 'maintenance' | 'system';
+  id: number;
+  userId: number;
+  type: NotificationType;
   title: string;
   description: string;
   read: boolean;
   link?: string;
+  relatedEntityId?: number;
+  relatedEntityType?: RelatedEntityType;
   createdAt: string;
 }
