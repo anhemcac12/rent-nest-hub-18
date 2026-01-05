@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { format, parseISO } from 'date-fns';
-import { Send, Building2, MessageSquare, Loader2, Shield } from 'lucide-react';
+import { Send, Building2, MessageSquare, Loader2, Shield, Wifi, WifiOff } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,6 +18,7 @@ import {
   ConversationDetailDTO,
   MessageDTO,
 } from '@/lib/api/conversationsApi';
+import { useChatWebSocket } from '@/hooks/useChatWebSocket';
 
 function ConversationListSkeleton() {
   return (
@@ -66,7 +67,6 @@ function ConversationList({
   return (
     <div className="space-y-2">
       {conversations.map((conv) => {
-        // Find the tenant participant to display
         const tenant = conv.participants.find(p => p.role === 'TENANT');
         const landlord = conv.participants.find(p => p.role === 'LANDLORD');
         
@@ -162,10 +162,12 @@ function MessageThread({
   conversation,
   onSendMessage,
   isSending,
+  isConnected,
 }: {
   conversation: ConversationDetailDTO;
   onSendMessage: (content: string) => void;
   isSending: boolean;
+  isConnected: boolean;
 }) {
   const [newMessage, setNewMessage] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -209,10 +211,17 @@ function MessageThread({
             {conversation.propertyTitle} • Owner: {conversation.landlord.fullName}
           </p>
         </div>
-        <Badge variant="secondary" className="text-xs flex items-center gap-1">
-          <Shield className="h-3 w-3" />
-          Managing
-        </Badge>
+        <div className="flex items-center gap-2">
+          <Badge variant="secondary" className="text-xs flex items-center gap-1">
+            <Shield className="h-3 w-3" />
+            Managing
+          </Badge>
+          {isConnected ? (
+            <Wifi className="h-4 w-4 text-green-500" />
+          ) : (
+            <WifiOff className="h-4 w-4 text-muted-foreground" />
+          )}
+        </div>
       </div>
 
       {/* Subject */}
@@ -271,6 +280,43 @@ export default function PropertyManagerMessages() {
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const [isSending, setIsSending] = useState(false);
 
+  // Handle incoming WebSocket messages
+  const handleNewMessage = useCallback((message: MessageDTO) => {
+    if (message.conversationId === selectedId) {
+      setSelectedConversation(prev => {
+        if (!prev) return null;
+        if (prev.messages.some(m => m.id === message.id)) {
+          return prev;
+        }
+        return {
+          ...prev,
+          messages: [...prev.messages, message],
+        };
+      });
+    }
+
+    setConversations(prev =>
+      prev.map(c =>
+        c.id === message.conversationId
+          ? {
+              ...c,
+              lastMessage: message.content,
+              lastMessageAt: message.createdAt,
+              lastMessageSenderRole: message.senderRole,
+              unreadCount: message.conversationId === selectedId ? 0 : c.unreadCount + 1,
+            }
+          : c
+      )
+    );
+  }, [selectedId]);
+
+  // WebSocket hook
+  const { isConnected, sendMessage, markAsRead } = useChatWebSocket({
+    conversationId: selectedId,
+    onNewMessage: handleNewMessage,
+    enabled: !!user,
+  });
+
   // Fetch conversations list
   useEffect(() => {
     const fetchConversations = async () => {
@@ -279,7 +325,6 @@ export default function PropertyManagerMessages() {
         const response = await conversationsApi.getConversations('ACTIVE');
         setConversations(response.content);
         
-        // Auto-select first conversation if none selected
         if (!selectedId && response.content.length > 0) {
           setSelectedId(response.content[0].id);
         }
@@ -309,11 +354,9 @@ export default function PropertyManagerMessages() {
         const detail = await conversationsApi.getConversation(selectedId);
         setSelectedConversation(detail);
         
-        // Mark as read if there are unread messages
         const conv = conversations.find(c => c.id === selectedId);
         if (conv && conv.unreadCount > 0) {
-          await conversationsApi.markConversationAsRead(selectedId);
-          // Update local state
+          markAsRead();
           setConversations(prev => 
             prev.map(c => c.id === selectedId ? { ...c, unreadCount: 0 } : c)
           );
@@ -327,37 +370,19 @@ export default function PropertyManagerMessages() {
     };
 
     fetchConversationDetail();
-  }, [selectedId]);
+  }, [selectedId, markAsRead]);
 
   const handleSendMessage = async (content: string) => {
     if (!selectedId) return;
 
     try {
       setIsSending(true);
-      const newMessage = await conversationsApi.sendMessage(selectedId, content);
+      const success = await sendMessage(content);
       
-      // Update conversation detail with new message
-      setSelectedConversation(prev => {
-        if (!prev) return null;
-        return {
-          ...prev,
-          messages: [...prev.messages, newMessage],
-        };
-      });
-
-      // Update conversation list
-      setConversations(prev =>
-        prev.map(c =>
-          c.id === selectedId
-            ? {
-                ...c,
-                lastMessage: content,
-                lastMessageAt: newMessage.createdAt,
-                lastMessageSenderRole: 'PROPERTY_MANAGER',
-              }
-            : c
-        )
-      );
+      if (!success) {
+        const newMessage = await conversationsApi.sendMessage(selectedId, content);
+        handleNewMessage(newMessage);
+      }
 
       toast.success('Message sent');
     } catch (error) {
@@ -378,7 +403,6 @@ export default function PropertyManagerMessages() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3 h-[calc(100vh-220px)]">
-        {/* Conversation List */}
         <Card className="lg:col-span-1">
           <CardHeader className="pb-3">
             <CardTitle className="text-base">Managed Conversations</CardTitle>
@@ -395,7 +419,6 @@ export default function PropertyManagerMessages() {
           </ScrollArea>
         </Card>
 
-        {/* Message Thread */}
         <Card className="lg:col-span-2 flex flex-col">
           {isLoadingDetail ? (
             <CardContent className="flex-1 flex items-center justify-center">
@@ -406,6 +429,7 @@ export default function PropertyManagerMessages() {
               conversation={selectedConversation}
               onSendMessage={handleSendMessage}
               isSending={isSending}
+              isConnected={isConnected}
             />
           ) : (
             <CardContent className="flex-1 flex items-center justify-center">

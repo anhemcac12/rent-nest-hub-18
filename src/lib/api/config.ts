@@ -2,6 +2,9 @@
 // Change this URL when your ngrok link changes
 export const API_BASE_URL = "http://localhost:8081";
 
+// WebSocket URL (same base, /ws endpoint)
+export const WS_URL = `${API_BASE_URL}/ws`;
+
 export const API_ENDPOINTS = {
   // Auth
   AUTH_REGISTER: "/api/auth/register",

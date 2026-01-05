@@ -6,6 +6,27 @@ Complete backend specification for real-time messaging between tenants, landlord
 
 ## Overview
 
+### Transport Methods
+
+The messaging system supports two transport methods:
+
+| Transport | Use Case | Endpoint |
+|-----------|----------|----------|
+| **REST API** | Initial data load, fallback, CRUD operations | `http://localhost:8081/api/conversations` |
+| **WebSocket (STOMP)** | Real-time messaging, instant delivery | `ws://localhost:8081/ws` |
+
+### WebSocket Quick Reference
+
+| Action | STOMP Destination | Description |
+|--------|-------------------|-------------|
+| Connect | `ws://localhost:8081/ws` | Connect with SockJS + STOMP |
+| Subscribe | `/topic/conversations/{id}` | Receive real-time messages |
+| Send Message | `/app/chat.send/{id}` | Send message instantly |
+| Mark Read | `/app/chat.read/{id}` | Mark messages as read |
+| Errors | `/user/queue/errors` | Receive error notifications |
+
+### REST API Quick Reference
+
 The messaging system enables communication between tenants and property owners/managers regarding specific properties. Each conversation is tied to a property and can involve:
 - **Tenant** ↔ **Landlord**: Direct communication
 - **Tenant** ↔ **Property Manager**: Manager handles communications for assigned properties
@@ -839,22 +860,121 @@ public void notifyRecipients(Conversation conv, Message msg, Long senderId) {
 
 ---
 
-## Real-time Considerations (Future)
+## WebSocket Implementation (STOMP + SockJS)
 
-For real-time messaging:
+The messaging system now supports real-time WebSocket communication using STOMP protocol over SockJS.
 
-1. **WebSocket Subscriptions**
-   - Subscribe to `/topic/conversations/{conversationId}`
-   - Push new messages instantly
-   - Update typing indicators
+### Connection Setup
 
-2. **Unread Count Updates**
-   - Subscribe to `/user/queue/unread-count`
-   - Real-time badge updates
+```javascript
+// Using SockJS + STOMP
+import SockJS from 'sockjs-client';
+import { Client } from '@stomp/stompjs';
 
-3. **Polling Alternative**
-   - Poll `/api/conversations/unread-count` every 30s
-   - Poll active conversation every 5s
+const socket = new SockJS('http://localhost:8081/ws');
+const stompClient = new Client({
+    webSocketFactory: () => socket,
+    connectHeaders: {
+        'Authorization': 'Bearer <your_token>'
+    },
+    debug: (str) => console.log('[STOMP]', str),
+    reconnectDelay: 5000,
+    heartbeatIncoming: 4000,
+    heartbeatOutgoing: 4000
+});
+
+stompClient.onConnect = (frame) => {
+    console.log('Connected:', frame);
+    
+    // Subscribe to conversation updates
+    stompClient.subscribe('/topic/conversations/5', (message) => {
+        const msg = JSON.parse(message.body);
+        console.log('New message:', msg);
+    });
+};
+
+stompClient.activate();
+```
+
+### Send Message (WebSocket)
+
+```javascript
+stompClient.publish({
+    destination: '/app/chat.send/5',
+    body: JSON.stringify({ content: 'Hello via WebSocket!' })
+});
+```
+
+### Mark as Read (WebSocket)
+
+```javascript
+stompClient.publish({
+    destination: '/app/chat.read/5',
+    body: ''
+});
+```
+
+### Subscribe Destinations
+
+| Destination | Description |
+|-------------|-------------|
+| `/topic/conversations/{id}` | Receive messages for a conversation |
+| `/user/queue/errors` | Receive error notifications |
+
+### Message Format (Same as REST)
+
+**Received Message:**
+```json
+{
+    "id": 15,
+    "conversationId": 5,
+    "senderId": 10,
+    "senderName": "John Tenant",
+    "senderRole": "TENANT",
+    "content": "Hello!",
+    "isOwn": false,
+    "isRead": false,
+    "createdAt": "2026-01-05T07:15:00"
+}
+```
+
+### Frontend Implementation
+
+A complete WebSocket service and React hook are provided:
+
+- `src/lib/websocket/chatWebSocket.ts` - WebSocket service singleton
+- `src/hooks/useChatWebSocket.ts` - React hook with auto-reconnect and REST fallback
+
+**Usage in Components:**
+
+```typescript
+import { useChatWebSocket } from '@/hooks/useChatWebSocket';
+
+function MessageComponent({ conversationId }) {
+    const { isConnected, sendMessage, markAsRead } = useChatWebSocket({
+        conversationId,
+        onNewMessage: (message) => {
+            // Handle real-time message
+            console.log('New message:', message);
+        },
+    });
+
+    const handleSend = async (content: string) => {
+        const success = await sendMessage(content);
+        if (!success) {
+            // Falls back to REST automatically
+        }
+    };
+}
+```
+
+### Fallback Strategy
+
+The frontend implementation includes automatic fallback to REST API when WebSocket is unavailable:
+
+1. Try sending via WebSocket first
+2. If WebSocket disconnected, use REST API
+3. Mark as read uses WebSocket when connected, REST otherwise
 
 ---
 

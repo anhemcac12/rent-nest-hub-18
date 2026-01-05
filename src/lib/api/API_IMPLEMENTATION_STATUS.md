@@ -2,9 +2,16 @@
 
 This file tracks which APIs have been implemented in the frontend and are connected to the backend.
 
-**Last Updated:** 2026-01-04
+**Last Updated:** 2026-01-05
 
 ---
+
+## Transport Methods
+
+| Transport | Use Case | Endpoint |
+|-----------|----------|----------|
+| **REST API** | Initial data load, CRUD operations, fallback | `http://localhost:8081/api/...` |
+| **WebSocket (STOMP)** | Real-time messaging | `ws://localhost:8081/ws` |
 
 ## Legend
 
@@ -292,8 +299,12 @@ ACTIVE → (user deletes) → ARCHIVED (soft delete, only for that user)
 | - | Updated TenantMessages, LandlordMessages, PropertyManagerMessages components |
 | - | Updated ContactLandlordModal to use real API with existing conversation check |
 | - | All 3 roles (Tenant, Landlord, Property Manager) fully supported |
-
----
+| 2026-01-05 | **WebSocket Integration**: Real-time messaging support |
+| - | Created chatWebSocket.ts service (STOMP over SockJS) |
+| - | Created useChatWebSocket.ts hook with auto-reconnect and REST fallback |
+| - | Updated all 3 message pages with real-time message delivery |
+| - | Added connection status indicator (Wifi/WifiOff icons) |
+| - | WebSocket endpoints: `/app/chat.send/{id}`, `/app/chat.read/{id}`, `/topic/conversations/{id}` |
 
 ## Next Priority APIs to Implement
 
