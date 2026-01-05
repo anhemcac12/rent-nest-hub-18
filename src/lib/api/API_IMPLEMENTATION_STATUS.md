@@ -38,11 +38,11 @@ This file tracks which APIs have been implemented in the frontend and are connec
 | Rent Schedule | 5/5 | 5 | 100% |
 | Conversations/Messages | 8/8 | 8 | 100% |
 | Notifications | 0/5 | 5 | 0% |
-| Maintenance | 0/20 | 20 | 0% |
+| Maintenance | 17/17 | 17 | 100% |
 | Documents | 0/3 | 3 | 0% |
 | Property Managers | 0/3 | 3 | 0% |
 | Manager Dashboard | 0/4 | 4 | 0% |
-| **TOTAL** | **60/92** | **92** | **65%** |
+| **TOTAL** | **77/89** | **89** | **87%** |
 
 ---
 
@@ -235,32 +235,41 @@ ACTIVE → (user deletes) → ARCHIVED (soft delete, only for that user)
 
 ---
 
-## 12. Maintenance ❌ (0/20)
+## 12. Maintenance ✅ (17/17)
 
 See [MAINTENANCE_API_SPECIFICATION.md](../../docs/MAINTENANCE_API_SPECIFICATION.md) for full details.
 
 | Endpoint | Status | API File | Notes |
 |----------|--------|----------|-------|
-| POST /api/maintenance | ❌ | - | Create request (tenant) |
-| GET /api/maintenance/my | ❌ | - | Get tenant's requests |
-| GET /api/maintenance/{id} | ❌ | - | Get request detail |
-| PATCH /api/maintenance/{id}/cancel | ❌ | - | Cancel request (tenant) |
-| POST /api/maintenance/{id}/comments | ❌ | - | Add comment |
-| GET /api/maintenance/{id}/comments | ❌ | - | Get comments |
-| POST /api/maintenance/{id}/images | ❌ | - | Upload image |
-| GET /api/maintenance/for-landlord | ❌ | - | Get landlord's requests |
-| GET /api/maintenance/for-manager | ❌ | - | Get manager's requests |
-| GET /api/maintenance/summary | ❌ | - | Get statistics |
-| PATCH /api/maintenance/{id}/accept | ❌ | - | Accept request |
-| PATCH /api/maintenance/{id}/reject | ❌ | - | Reject request |
-| PATCH /api/maintenance/{id}/start | ❌ | - | Start work |
-| PATCH /api/maintenance/{id}/schedule | ❌ | - | Schedule work |
-| PATCH /api/maintenance/{id}/resolve | ❌ | - | Mark resolved |
-| PATCH /api/maintenance/{id}/reopen | ❌ | - | Reopen request |
-| PATCH /api/maintenance/{id}/priority | ❌ | - | Update priority |
-| GET /api/maintenance/{id}/timeline | ❌ | - | Get timeline |
-| GET /api/maintenance/lease/{leaseId} | ❌ | - | Get by lease |
-| GET /api/maintenance/property/{propertyId} | ❌ | - | Get by property |
+| POST /api/maintenance | ✅ | maintenanceApi.ts | `createMaintenanceRequest()` |
+| GET /api/maintenance/my | ✅ | maintenanceApi.ts | `getMyMaintenanceRequests()` |
+| GET /api/maintenance/{id} | ✅ | maintenanceApi.ts | `getMaintenanceRequestDetail()` |
+| PATCH /api/maintenance/{id}/cancel | ✅ | maintenanceApi.ts | `cancelMaintenanceRequest()` |
+| POST /api/maintenance/{id}/comments | ✅ | maintenanceApi.ts | `addMaintenanceComment()` |
+| GET /api/maintenance/{id}/comments | ✅ | maintenanceApi.ts | `getMaintenanceComments()` |
+| POST /api/maintenance/{id}/images | ✅ | maintenanceApi.ts | `uploadMaintenanceImage()` |
+| GET /api/maintenance/for-landlord | ✅ | maintenanceApi.ts | `getMaintenanceForLandlord()` |
+| GET /api/maintenance/summary | ✅ | maintenanceApi.ts | `getMaintenanceSummary()` |
+| PATCH /api/maintenance/{id}/accept | ✅ | maintenanceApi.ts | `acceptMaintenanceRequest()` |
+| PATCH /api/maintenance/{id}/reject | ✅ | maintenanceApi.ts | `rejectMaintenanceRequest()` |
+| PATCH /api/maintenance/{id}/start | ✅ | maintenanceApi.ts | `startMaintenanceWork()` |
+| PATCH /api/maintenance/{id}/schedule | ✅ | maintenanceApi.ts | `scheduleMaintenanceWork()` |
+| PATCH /api/maintenance/{id}/resolve | ✅ | maintenanceApi.ts | `resolveMaintenanceRequest()` |
+| PATCH /api/maintenance/{id}/reopen | ✅ | maintenanceApi.ts | `reopenMaintenanceRequest()` |
+| PATCH /api/maintenance/{id}/priority | ✅ | maintenanceApi.ts | `updateMaintenancePriority()` |
+| GET /api/maintenance/{id}/timeline | ✅ | maintenanceApi.ts | `getMaintenanceTimeline()` |
+
+### Maintenance Status Flow
+
+```
+OPEN → ACCEPTED → IN_PROGRESS → COMPLETED
+              ↓
+         SCHEDULED → IN_PROGRESS → COMPLETED
+              
+OPEN → REJECTED
+OPEN → CANCELLED (by tenant)
+COMPLETED/REJECTED → OPEN (reopen)
+```
 
 ---
 
@@ -324,9 +333,15 @@ See [MAINTENANCE_API_SPECIFICATION.md](../../docs/MAINTENANCE_API_SPECIFICATION.
 | - | Updated all 3 message pages with real-time message delivery |
 | - | Added connection status indicator (Wifi/WifiOff icons) |
 | - | WebSocket endpoints: `/app/chat.send/{id}`, `/app/chat.read/{id}`, `/topic/conversations/{id}` |
+| 2026-01-05 | **Maintenance APIs (17)**: Full implementation |
+| - | Created maintenanceApi.ts with all endpoints |
+| - | Updated TenantMaintenance.tsx - create requests, view, cancel |
+| - | Updated LandlordMaintenance.tsx - accept, reject, schedule, start, resolve |
+| - | Updated PropertyManagerMaintenance.tsx - same as landlord |
+| - | All 3 roles fully connected to real API, no mock data |
 
 ## Next Priority APIs to Implement
 
 1. **Notifications** - Enable real-time notifications
-2. **Maintenance** - Enable maintenance request workflow
-3. **Documents** - Document management for leases
+2. **Documents** - Document management for leases
+3. **Property Managers** - Manager assignment workflow
