@@ -17,6 +17,7 @@ import { notificationsApi, Notification } from '@/lib/api/notificationsApi';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { format } from 'date-fns';
+import { getRoleAwareNotificationLink } from '@/lib/utils/notificationLinks';
 
 const navLinks = [
   { to: '/', label: 'Home', icon: Home },
@@ -72,8 +73,8 @@ export function Header() {
         console.error('Failed to mark notification as read:', err);
       }
     }
-    if (notification.link) {
-      navigate(notification.link);
+    if (notification.link && user?.role) {
+      navigate(getRoleAwareNotificationLink(notification.link, notification.type, user.role));
     }
   };
 
