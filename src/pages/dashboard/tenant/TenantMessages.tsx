@@ -1,7 +1,7 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { format, parseISO } from 'date-fns';
-import { Send, Building2, MessageSquare, Loader2 } from 'lucide-react';
+import { Send, Building2, MessageSquare, Loader2, Wifi, WifiOff } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,6 +18,7 @@ import {
   ConversationDetailDTO,
   MessageDTO,
 } from '@/lib/api/conversationsApi';
+import { useChatWebSocket } from '@/hooks/useChatWebSocket';
 
 function ConversationListSkeleton() {
   return (
@@ -66,7 +67,6 @@ function ConversationList({
   return (
     <div className="space-y-2">
       {conversations.map((conv) => {
-        // Find the landlord participant to display
         const landlord = conv.participants.find(p => p.role === 'LANDLORD');
         
         return (
@@ -152,10 +152,12 @@ function MessageThread({
   conversation,
   onSendMessage,
   isSending,
+  isConnected,
 }: {
   conversation: ConversationDetailDTO;
   onSendMessage: (content: string) => void;
   isSending: boolean;
+  isConnected: boolean;
 }) {
   const [newMessage, setNewMessage] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -196,11 +198,18 @@ function MessageThread({
             {conversation.propertyTitle}
           </p>
         </div>
-        {conversation.propertyManagers.length > 0 && (
-          <Badge variant="outline" className="text-xs">
-            +{conversation.propertyManagers.length} manager{conversation.propertyManagers.length > 1 ? 's' : ''}
-          </Badge>
-        )}
+        <div className="flex items-center gap-2">
+          {conversation.propertyManagers.length > 0 && (
+            <Badge variant="outline" className="text-xs">
+              +{conversation.propertyManagers.length} manager{conversation.propertyManagers.length > 1 ? 's' : ''}
+            </Badge>
+          )}
+          {isConnected ? (
+            <Wifi className="h-4 w-4 text-green-500" />
+          ) : (
+            <WifiOff className="h-4 w-4 text-muted-foreground" />
+          )}
+        </div>
       </div>
 
       {/* Subject */}
@@ -259,6 +268,46 @@ export default function TenantMessages() {
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const [isSending, setIsSending] = useState(false);
 
+  // Handle incoming WebSocket messages
+  const handleNewMessage = useCallback((message: MessageDTO) => {
+    // Update selected conversation if it's the current one
+    if (message.conversationId === selectedId) {
+      setSelectedConversation(prev => {
+        if (!prev) return null;
+        // Avoid duplicates
+        if (prev.messages.some(m => m.id === message.id)) {
+          return prev;
+        }
+        return {
+          ...prev,
+          messages: [...prev.messages, message],
+        };
+      });
+    }
+
+    // Update conversation list
+    setConversations(prev =>
+      prev.map(c =>
+        c.id === message.conversationId
+          ? {
+              ...c,
+              lastMessage: message.content,
+              lastMessageAt: message.createdAt,
+              lastMessageSenderRole: message.senderRole,
+              unreadCount: message.conversationId === selectedId ? 0 : c.unreadCount + 1,
+            }
+          : c
+      )
+    );
+  }, [selectedId]);
+
+  // WebSocket hook
+  const { isConnected, sendMessage, markAsRead } = useChatWebSocket({
+    conversationId: selectedId,
+    onNewMessage: handleNewMessage,
+    enabled: !!user,
+  });
+
   // Fetch conversations list
   useEffect(() => {
     const fetchConversations = async () => {
@@ -267,7 +316,6 @@ export default function TenantMessages() {
         const response = await conversationsApi.getConversations('ACTIVE');
         setConversations(response.content);
         
-        // Auto-select first conversation if none selected
         if (!selectedId && response.content.length > 0) {
           setSelectedId(response.content[0].id);
         }
@@ -297,11 +345,10 @@ export default function TenantMessages() {
         const detail = await conversationsApi.getConversation(selectedId);
         setSelectedConversation(detail);
         
-        // Mark as read if there are unread messages
+        // Mark as read
         const conv = conversations.find(c => c.id === selectedId);
         if (conv && conv.unreadCount > 0) {
-          await conversationsApi.markConversationAsRead(selectedId);
-          // Update local state
+          markAsRead();
           setConversations(prev => 
             prev.map(c => c.id === selectedId ? { ...c, unreadCount: 0 } : c)
           );
@@ -315,37 +362,20 @@ export default function TenantMessages() {
     };
 
     fetchConversationDetail();
-  }, [selectedId]);
+  }, [selectedId, markAsRead]);
 
   const handleSendMessage = async (content: string) => {
     if (!selectedId) return;
 
     try {
       setIsSending(true);
-      const newMessage = await conversationsApi.sendMessage(selectedId, content);
+      const success = await sendMessage(content);
       
-      // Update conversation detail with new message
-      setSelectedConversation(prev => {
-        if (!prev) return null;
-        return {
-          ...prev,
-          messages: [...prev.messages, newMessage],
-        };
-      });
-
-      // Update conversation list
-      setConversations(prev =>
-        prev.map(c =>
-          c.id === selectedId
-            ? {
-                ...c,
-                lastMessage: content,
-                lastMessageAt: newMessage.createdAt,
-                lastMessageSenderRole: 'TENANT',
-              }
-            : c
-        )
-      );
+      if (!success) {
+        // Fallback to REST if WebSocket fails
+        const newMessage = await conversationsApi.sendMessage(selectedId, content);
+        handleNewMessage(newMessage);
+      }
 
       toast.success('Message sent');
     } catch (error) {
@@ -366,7 +396,6 @@ export default function TenantMessages() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-16rem)]">
-        {/* Conversations List */}
         <Card className="lg:col-span-1">
           <CardHeader className="pb-3">
             <CardTitle className="text-lg">Conversations</CardTitle>
@@ -381,7 +410,6 @@ export default function TenantMessages() {
           </CardContent>
         </Card>
 
-        {/* Message Thread */}
         <Card className="lg:col-span-2 flex flex-col">
           {isLoadingDetail ? (
             <CardContent className="flex-1 flex items-center justify-center">
@@ -392,6 +420,7 @@ export default function TenantMessages() {
               conversation={selectedConversation}
               onSendMessage={handleSendMessage}
               isSending={isSending}
+              isConnected={isConnected}
             />
           ) : (
             <CardContent className="flex-1 flex items-center justify-center">
