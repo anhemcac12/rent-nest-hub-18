@@ -38,11 +38,11 @@ This file tracks which APIs have been implemented in the frontend and are connec
 | Rent Schedule | 5/5 | 5 | 100% |
 | Conversations/Messages | 8/8 | 8 | 100% |
 | Notifications | 0/5 | 5 | 0% |
-| Maintenance | 0/3 | 3 | 0% |
+| Maintenance | 0/20 | 20 | 0% |
 | Documents | 0/3 | 3 | 0% |
 | Property Managers | 0/3 | 3 | 0% |
 | Manager Dashboard | 0/4 | 4 | 0% |
-| **TOTAL** | **60/75** | **75** | **80%** |
+| **TOTAL** | **60/92** | **92** | **65%** |
 
 ---
 
@@ -235,13 +235,32 @@ ACTIVE → (user deletes) → ARCHIVED (soft delete, only for that user)
 
 ---
 
-## 12. Maintenance ❌ (0/3)
+## 12. Maintenance ❌ (0/20)
+
+See [MAINTENANCE_API_SPECIFICATION.md](../../docs/MAINTENANCE_API_SPECIFICATION.md) for full details.
 
 | Endpoint | Status | API File | Notes |
 |----------|--------|----------|-------|
-| GET /maintenance | ❌ | - | Get maintenance requests |
-| POST /maintenance | ❌ | - | Create request (tenant) |
-| PUT /landlord/maintenance/:id/status | ❌ | - | Update status (landlord) |
+| POST /api/maintenance | ❌ | - | Create request (tenant) |
+| GET /api/maintenance/my | ❌ | - | Get tenant's requests |
+| GET /api/maintenance/{id} | ❌ | - | Get request detail |
+| PATCH /api/maintenance/{id}/cancel | ❌ | - | Cancel request (tenant) |
+| POST /api/maintenance/{id}/comments | ❌ | - | Add comment |
+| GET /api/maintenance/{id}/comments | ❌ | - | Get comments |
+| POST /api/maintenance/{id}/images | ❌ | - | Upload image |
+| GET /api/maintenance/for-landlord | ❌ | - | Get landlord's requests |
+| GET /api/maintenance/for-manager | ❌ | - | Get manager's requests |
+| GET /api/maintenance/summary | ❌ | - | Get statistics |
+| PATCH /api/maintenance/{id}/accept | ❌ | - | Accept request |
+| PATCH /api/maintenance/{id}/reject | ❌ | - | Reject request |
+| PATCH /api/maintenance/{id}/start | ❌ | - | Start work |
+| PATCH /api/maintenance/{id}/schedule | ❌ | - | Schedule work |
+| PATCH /api/maintenance/{id}/resolve | ❌ | - | Mark resolved |
+| PATCH /api/maintenance/{id}/reopen | ❌ | - | Reopen request |
+| PATCH /api/maintenance/{id}/priority | ❌ | - | Update priority |
+| GET /api/maintenance/{id}/timeline | ❌ | - | Get timeline |
+| GET /api/maintenance/lease/{leaseId} | ❌ | - | Get by lease |
+| GET /api/maintenance/property/{propertyId} | ❌ | - | Get by property |
 
 ---
 
