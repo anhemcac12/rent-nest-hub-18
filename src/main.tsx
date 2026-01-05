@@ -1,3 +1,8 @@
+// Polyfill for sockjs-client which expects Node.js global
+if (typeof window !== 'undefined') {
+  (window as any).global = window;
+}
+
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
