@@ -58,6 +58,7 @@ import {
   MaintenanceStatus,
   MaintenancePriority,
 } from '@/lib/api/maintenanceApi';
+import { ImageLightbox } from '@/components/maintenance/ImageLightbox';
 
 const statusConfig: Record<MaintenanceStatus, { label: string; icon: typeof AlertTriangle; className: string }> = {
   OPEN: { label: 'Open', icon: AlertTriangle, className: 'bg-warning/10 text-warning' },
@@ -284,6 +285,7 @@ function MaintenanceCard({ item }: { item: MaintenanceListItem }) {
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [showScheduleDialog, setShowScheduleDialog] = useState(false);
   const [showResolveDialog, setShowResolveDialog] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const queryClient = useQueryClient();
 
   const statusCfg = statusConfig[item.status];
@@ -477,16 +479,26 @@ function MaintenanceCard({ item }: { item: MaintenanceListItem }) {
                     <p className="text-sm">{details.description}</p>
 
                     {details.images && details.images.length > 0 && (
-                      <div className="flex flex-wrap gap-2">
-                        {details.images.map((img) => (
-                          <img
-                            key={img.id}
-                            src={img.fileUrl}
-                            alt={img.fileName}
-                            className="h-24 w-24 object-cover rounded-lg border cursor-pointer hover:opacity-80 transition-opacity"
+                      <>
+                        <div className="flex flex-wrap gap-2">
+                          {details.images.map((img, index) => (
+                            <img
+                              key={img.id}
+                              src={img.url}
+                              alt={`Maintenance image ${index + 1}`}
+                              className="h-24 w-24 object-cover rounded-lg border cursor-pointer hover:opacity-80 transition-opacity"
+                              onClick={() => setLightboxIndex(index)}
+                            />
+                          ))}
+                        </div>
+                        {lightboxIndex !== null && (
+                          <ImageLightbox
+                            images={details.images}
+                            initialIndex={lightboxIndex}
+                            onClose={() => setLightboxIndex(null)}
                           />
-                        ))}
-                      </div>
+                        )}
+                      </>
                     )}
 
                     {details.scheduledFor && (
