@@ -29,7 +29,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
-import { getUnreadNotificationCount } from '@/lib/mockDatabase';
+import { notificationsApi } from '@/lib/api/notificationsApi';
 import { conversationsApi } from '@/lib/api/conversationsApi';
 import { Badge } from '@/components/ui/badge';
 
@@ -56,14 +56,14 @@ export function LandlordSidebar() {
   const [unreadMessages, setUnreadMessages] = useState(0);
 
   useEffect(() => {
-    if (user) {
-      setUnreadNotifications(getUnreadNotificationCount(user.id));
-      
-      conversationsApi.getUnreadCount()
-        .then(response => setUnreadMessages(response.unreadCount))
-        .catch(err => console.error('Failed to fetch unread messages:', err));
-    }
-  }, [user, location.pathname]);
+    notificationsApi.getUnreadCount()
+      .then(response => setUnreadNotifications(response.count))
+      .catch(err => console.error('Failed to fetch unread notifications:', err));
+    
+    conversationsApi.getUnreadCount()
+      .then(response => setUnreadMessages(response.unreadCount))
+      .catch(err => console.error('Failed to fetch unread messages:', err));
+  }, [location.pathname]);
 
   const isActive = (path: string) => {
     if (path === '/dashboard') {

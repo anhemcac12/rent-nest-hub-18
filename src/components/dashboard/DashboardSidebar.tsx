@@ -31,7 +31,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
-import { getUnreadNotificationCount } from '@/lib/mockDatabase';
+import { notificationsApi } from '@/lib/api/notificationsApi';
 import { Badge } from '@/components/ui/badge';
 
 const mainNavItems = [
@@ -58,10 +58,10 @@ export function DashboardSidebar() {
   const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
-    if (user) {
-      setUnreadCount(getUnreadNotificationCount(user.id));
-    }
-  }, [user, location.pathname]);
+    notificationsApi.getUnreadCount()
+      .then(response => setUnreadCount(response.count))
+      .catch(err => console.error('Failed to fetch unread count:', err));
+  }, [location.pathname]);
 
   const isActive = (path: string) => {
     if (path === '/dashboard') {
