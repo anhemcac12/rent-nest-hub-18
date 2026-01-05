@@ -8,6 +8,8 @@ import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { notificationsApi, Notification, NotificationType } from '@/lib/api/notificationsApi';
 import { toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext';
+import { getRoleAwareNotificationLink } from '@/lib/utils/notificationLinks';
 
 const typeIcons: Record<NotificationType, React.ElementType> = {
   APPLICATION: FileText,
@@ -30,6 +32,7 @@ const typeColors: Record<NotificationType, string> = {
 };
 
 export default function Notifications() {
+  const { user } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [totalElements, setTotalElements] = useState(0);
@@ -188,14 +191,14 @@ export default function Notifications() {
                         </p>
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
-                        {notification.link && (
+                        {notification.link && user?.role && (
                           <Button
                             variant="ghost"
                             size="sm"
                             asChild
                             onClick={() => !notification.read && handleMarkAsRead(notification.id)}
                           >
-                            <Link to={notification.link}>View</Link>
+                            <Link to={getRoleAwareNotificationLink(notification.link, notification.type, user.role)}>View</Link>
                           </Button>
                         )}
                         {!notification.read && (
