@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Menu, X, Home, Search, Info, Phone, HelpCircle, LogIn, UserPlus, LayoutDashboard, LogOut, Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
+import { useRealtime } from '@/contexts/RealtimeContext';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   DropdownMenu,
@@ -13,12 +14,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { notificationsApi, Notification } from '@/lib/api/notificationsApi';
+import { Notification } from '@/lib/api/notificationsApi';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { format } from 'date-fns';
 import { getRoleAwareNotificationLink } from '@/lib/utils/notificationLinks';
-
 const navLinks = [
   { to: '/', label: 'Home', icon: Home },
   { to: '/properties', label: 'Browse Properties', icon: Search },
@@ -29,25 +29,10 @@ const navLinks = [
 
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
   const location = useLocation();
   const navigate = useNavigate();
   const { user, isAuthenticated, logout } = useAuth();
-
-  useEffect(() => {
-    if (isAuthenticated) {
-      // Fetch notifications
-      notificationsApi.getNotifications({ size: 5 })
-        .then(response => setNotifications(response.content))
-        .catch(err => console.error('Failed to fetch notifications:', err));
-      
-      // Fetch unread count
-      notificationsApi.getUnreadCount()
-        .then(response => setUnreadCount(response.count))
-        .catch(err => console.error('Failed to fetch unread count:', err));
-    }
-  }, [isAuthenticated, location.pathname]);
+  const { notifications, unreadCount, markAsRead } = useRealtime();
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -63,15 +48,7 @@ export function Header() {
 
   const handleNotificationClick = async (notification: Notification) => {
     if (!notification.read) {
-      try {
-        await notificationsApi.markAsRead(notification.id);
-        setNotifications(prev => 
-          prev.map(n => n.id === notification.id ? { ...n, read: true } : n)
-        );
-        setUnreadCount(prev => Math.max(0, prev - 1));
-      } catch (err) {
-        console.error('Failed to mark notification as read:', err);
-      }
+      await markAsRead(notification.id);
     }
     if (notification.link && user?.role) {
       navigate(getRoleAwareNotificationLink(notification.link, notification.type, user.role));

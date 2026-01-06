@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { Bell, Check, CheckCheck, Trash2, FileText, MessageSquare, Home, CreditCard, Wrench, Info, ScrollText, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,7 @@ import { format } from 'date-fns';
 import { notificationsApi, Notification, NotificationType } from '@/lib/api/notificationsApi';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
+import { useRealtime } from '@/contexts/RealtimeContext';
 import { getRoleAwareNotificationLink } from '@/lib/utils/notificationLinks';
 
 const typeIcons: Record<NotificationType, React.ElementType> = {
@@ -33,13 +34,14 @@ const typeColors: Record<NotificationType, string> = {
 
 export default function Notifications() {
   const { user } = useAuth();
+  const { refreshNotifications: refreshGlobal } = useRealtime();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [totalElements, setTotalElements] = useState(0);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(false);
 
-  const fetchNotifications = async (pageNum: number = 0) => {
+  const fetchNotifications = useCallback(async (pageNum: number = 0) => {
     try {
       setLoading(true);
       const response = await notificationsApi.getNotifications({ page: pageNum, size: 20 });
@@ -57,11 +59,11 @@ export default function Notifications() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchNotifications();
-  }, []);
+  }, [fetchNotifications]);
 
   const handleMarkAsRead = async (notificationId: number) => {
     try {
@@ -69,6 +71,7 @@ export default function Notifications() {
       setNotifications(prev => 
         prev.map(n => n.id === notificationId ? { ...n, read: true } : n)
       );
+      refreshGlobal();
     } catch (error) {
       console.error('Failed to mark as read:', error);
       toast.error('Failed to mark notification as read');
@@ -79,6 +82,7 @@ export default function Notifications() {
     try {
       await notificationsApi.markAllAsRead();
       setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+      refreshGlobal();
       toast.success('All notifications marked as read');
     } catch (error) {
       console.error('Failed to mark all as read:', error);
