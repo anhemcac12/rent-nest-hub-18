@@ -37,7 +37,7 @@ import {
 } from '@/components/ui/select';
 import { StatsCard } from '@/components/dashboard/StatsCard';
 import { useRealtimeRefresh } from '@/contexts/RealtimeContext';
-import { leaseApi } from '@/lib/api/leaseApi';
+import { leaseApi, LeaseResponseDTO } from '@/lib/api/leaseApi';
 import { 
   paymentApi, 
   PaymentResponseDTO, 
@@ -50,6 +50,7 @@ import {
 import { toast } from 'sonner';
 import { RentPaymentModal } from '@/components/tenant/RentPaymentModal';
 import { Progress } from '@/components/ui/progress';
+import { downloadReceipt } from '@/lib/utils/receiptGenerator';
 
 const paymentStatusConfig: Record<PaymentStatus, { label: string; icon: typeof CheckCircle2; className: string }> = {
   COMPLETED: { label: 'Paid', icon: CheckCircle2, className: 'bg-accent/10 text-accent' },
@@ -160,7 +161,17 @@ export default function Payments() {
   };
 
   const handleDownloadReceipt = (payment: PaymentResponseDTO) => {
-    toast.success(`Downloading receipt for payment #${payment.id}`);
+    // Find the lease to get property details
+    const lease = activeLeases.find(l => l.id === payment.leaseId);
+    
+    downloadReceipt({
+      payment,
+      propertyTitle: lease?.propertyTitle,
+      propertyAddress: lease?.propertyAddress,
+      landlordName: lease?.landlordName,
+    });
+    
+    toast.success('Receipt downloaded successfully');
   };
 
   const handlePaymentSuccess = useCallback(() => {
