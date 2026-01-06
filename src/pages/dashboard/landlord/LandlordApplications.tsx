@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Check, X, Clock, MessageSquare, ChevronDown, FileText } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/contexts/AuthContext';
+import { useRealtimeRefresh } from '@/contexts/RealtimeContext';
 import { 
   leaseApplicationApi, 
   LeaseApplicationResponseDTO, 
@@ -58,7 +59,7 @@ export default function LandlordApplications() {
   const [contractFile, setContractFile] = useState<File | null>(null);
   const [isCreatingLease, setIsCreatingLease] = useState(false);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     if (!user?.id) return;
 
     try {
@@ -86,11 +87,14 @@ export default function LandlordApplications() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user?.id]);
 
   useEffect(() => {
     fetchData();
-  }, [user]);
+  }, [fetchData]);
+
+  // Auto-refresh when APPLICATION notifications are received
+  useRealtimeRefresh(['APPLICATION'], fetchData);
 
   const handleAction = async () => {
     if (!reviewingApp || !actionType) return;

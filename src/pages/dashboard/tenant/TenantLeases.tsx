@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { ScrollText, Calendar, DollarSign, Clock, CheckCircle2, XCircle, FileText, ExternalLink, CreditCard, AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
+import { useRealtimeRefresh } from '@/contexts/RealtimeContext';
 import { leaseApi, LeaseResponseDTO, LeaseStatus } from '@/lib/api/leaseApi';
 import { toast } from '@/hooks/use-toast';
 import { format, differenceInHours } from 'date-fns';
@@ -32,7 +33,7 @@ export default function TenantLeases() {
     }
   }, [user]);
 
-  const refreshLeases = async () => {
+  const refreshLeases = useCallback(async () => {
     try {
       setIsLoading(true);
       const data = await leaseApi.getMyLeases();
@@ -46,7 +47,10 @@ export default function TenantLeases() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
+
+  // Auto-refresh when LEASE or PAYMENT notifications are received
+  useRealtimeRefresh(['LEASE', 'PAYMENT'], refreshLeases);
 
   const getStatusBadge = (status: LeaseStatus) => {
     switch (status) {

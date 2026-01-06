@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { format, parseISO } from 'date-fns';
 import { FileText, Clock, CheckCircle2, XCircle, AlertCircle, MapPin, Undo2 } from 'lucide-react';
@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
+import { useRealtimeRefresh } from '@/contexts/RealtimeContext';
 import { leaseApplicationApi, LeaseApplicationResponseDTO, LeaseApplicationStatus } from '@/lib/api/leaseApplicationApi';
 import { ApiError } from '@/lib/api/client';
 import { toast } from 'sonner';
@@ -83,7 +84,7 @@ export default function TenantApplications() {
   const [applications, setApplications] = useState<LeaseApplicationResponseDTO[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const fetchApplications = async () => {
+  const fetchApplications = useCallback(async () => {
     if (!user) return;
     
     try {
@@ -99,11 +100,14 @@ export default function TenantApplications() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user]);
 
   useEffect(() => {
     fetchApplications();
-  }, [user]);
+  }, [fetchApplications]);
+
+  // Auto-refresh when APPLICATION notifications are received
+  useRealtimeRefresh(['APPLICATION'], fetchApplications);
 
   const handleCancel = async (applicationId: number) => {
     try {

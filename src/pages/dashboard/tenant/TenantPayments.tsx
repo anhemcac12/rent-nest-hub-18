@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { format, parseISO } from 'date-fns';
 import {
@@ -36,6 +36,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { StatsCard } from '@/components/dashboard/StatsCard';
+import { useRealtimeRefresh } from '@/contexts/RealtimeContext';
 import { leaseApi } from '@/lib/api/leaseApi';
 import { 
   paymentApi, 
@@ -162,11 +163,14 @@ export default function Payments() {
     toast.success(`Downloading receipt for payment #${payment.id}`);
   };
 
-  const handlePaymentSuccess = () => {
+  const handlePaymentSuccess = useCallback(() => {
     refetchSchedules();
     refetchPayments();
     toast.success('Payment completed successfully');
-  };
+  }, [refetchSchedules, refetchPayments]);
+
+  // Auto-refresh when PAYMENT notifications are received
+  useRealtimeRefresh(['PAYMENT'], handlePaymentSuccess);
 
   const isLoading = leasesLoading || schedulesLoading || paymentsLoading;
 

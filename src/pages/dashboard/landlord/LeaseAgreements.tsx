@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { ScrollText, Calendar, DollarSign, Clock, TrendingUp, Eye, FileText, History, Plus, ExternalLink } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/contexts/AuthContext';
+import { useRealtimeRefresh } from '@/contexts/RealtimeContext';
 import { leaseApi, LeaseResponseDTO, LeaseStatus } from '@/lib/api/leaseApi';
 import { useNavigate } from 'react-router-dom';
 import { toast } from '@/hooks/use-toast';
@@ -24,7 +25,7 @@ export default function LeaseAgreementsPage() {
     }
   }, [user]);
 
-  const fetchLeases = async () => {
+  const fetchLeases = useCallback(async () => {
     try {
       setIsLoading(true);
       const data = await leaseApi.getLeasesForLandlord();
@@ -38,7 +39,10 @@ export default function LeaseAgreementsPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
+
+  // Auto-refresh when LEASE or PAYMENT notifications are received
+  useRealtimeRefresh(['LEASE', 'PAYMENT'], fetchLeases);
 
   const handleTerminateLease = async (leaseId: number) => {
     try {
