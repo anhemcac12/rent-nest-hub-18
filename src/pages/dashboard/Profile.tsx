@@ -12,6 +12,7 @@ import {
   Save,
   Loader2,
 } from 'lucide-react';
+import { ChangePasswordModal } from '@/components/profile/ChangePasswordModal';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -124,9 +125,7 @@ export default function Profile() {
     }
   };
 
-  const handlePasswordChange = () => {
-    toast.info('Password change would be handled here');
-  };
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
 
   const handleDeactivate = () => {
     toast.error('Account deactivated');
@@ -414,7 +413,7 @@ export default function Profile() {
                 Last changed 30 days ago
               </p>
             </div>
-            <Button variant="outline" onClick={handlePasswordChange}>
+            <Button variant="outline" onClick={() => setShowPasswordModal(true)}>
               Change Password
             </Button>
           </div>
@@ -460,6 +459,11 @@ export default function Profile() {
           </div>
         </CardContent>
       </Card>
+
+      <ChangePasswordModal 
+        open={showPasswordModal} 
+        onClose={() => setShowPasswordModal(false)} 
+      />
     </div>
   );
 }
