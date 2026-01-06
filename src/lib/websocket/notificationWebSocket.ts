@@ -37,9 +37,8 @@ class NotificationWebSocketService {
         Authorization: `Bearer ${token}`,
       },
       debug: (str) => {
-        if (str.includes('SUBSCRIBE') || str.includes('MESSAGE') || str.includes('CONNECTED')) {
-          console.log('[NotificationWS]', str);
-        }
+        // Log all important STOMP events for debugging
+        console.log('[NotificationWS]', str);
       },
       reconnectDelay: 5000,
       heartbeatIncoming: 4000,
