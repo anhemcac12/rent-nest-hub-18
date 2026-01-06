@@ -3,6 +3,7 @@ import { useAuth } from './AuthContext';
 import { TOKEN_KEY } from '@/lib/api/config';
 import { notificationWebSocket, ConnectionStatus } from '@/lib/websocket/notificationWebSocket';
 import { Notification, NotificationType, notificationsApi } from '@/lib/api/notificationsApi';
+import { toast } from 'sonner';
 
 interface RealtimeContextType {
   // Notification state
@@ -50,10 +51,22 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
 
   // Handle new notification from WebSocket
   const handleNewNotification = useCallback((notification: Notification) => {
-    console.log('[Realtime] New notification received:', notification);
+    console.log('[Realtime] New notification received via WebSocket:', notification);
     
-    // Add to notifications list
-    setNotifications(prev => [notification, ...prev.slice(0, 9)]);
+    // Show toast notification immediately
+    toast(notification.title, {
+      description: notification.description,
+      duration: 5000,
+    });
+    
+    // Add to notifications list immediately (optimistic update)
+    setNotifications(prev => {
+      // Avoid duplicates
+      if (prev.some(n => n.id === notification.id)) {
+        return prev;
+      }
+      return [notification, ...prev.slice(0, 9)];
+    });
     setUnreadCount(prev => prev + 1);
     
     // Trigger refresh callbacks for this notification type

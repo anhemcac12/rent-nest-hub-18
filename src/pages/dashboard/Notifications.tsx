@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Bell, Check, CheckCheck, Trash2, FileText, MessageSquare, Home, CreditCard, Wrench, Info, ScrollText, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -34,12 +34,13 @@ const typeColors: Record<NotificationType, string> = {
 
 export default function Notifications() {
   const { user } = useAuth();
-  const { refreshNotifications: refreshGlobal } = useRealtime();
+  const { notifications: realtimeNotifications, refreshNotifications: refreshGlobal, subscribeToRefresh } = useRealtime();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [totalElements, setTotalElements] = useState(0);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(false);
+  const lastFetchRef = useRef<number>(0);
 
   const fetchNotifications = useCallback(async (pageNum: number = 0) => {
     try {
@@ -53,6 +54,7 @@ export default function Notifications() {
       setTotalElements(response.totalElements);
       setHasMore(pageNum < response.totalPages - 1);
       setPage(pageNum);
+      lastFetchRef.current = Date.now();
     } catch (error) {
       console.error('Failed to fetch notifications:', error);
       toast.error('Failed to load notifications');
@@ -61,9 +63,26 @@ export default function Notifications() {
     }
   }, []);
 
+  // Initial fetch
   useEffect(() => {
     fetchNotifications();
   }, [fetchNotifications]);
+
+  // Subscribe to ALL notification types for real-time updates
+  useEffect(() => {
+    const allTypes: NotificationType[] = ['APPLICATION', 'LEASE', 'PAYMENT', 'MAINTENANCE', 'MESSAGE', 'PROPERTY', 'SYSTEM'];
+    
+    const handleNewNotification = () => {
+      // Debounce - don't refetch if we just fetched
+      if (Date.now() - lastFetchRef.current > 1000) {
+        console.log('[Notifications] Real-time update triggered, refetching...');
+        fetchNotifications(0);
+      }
+    };
+
+    const unsubscribe = subscribeToRefresh(allTypes, handleNewNotification);
+    return unsubscribe;
+  }, [subscribeToRefresh, fetchNotifications]);
 
   const handleMarkAsRead = async (notificationId: number) => {
     try {
